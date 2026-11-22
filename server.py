@@ -2,6 +2,16 @@ import datetime
 from typing import List, Dict, Any
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+# ... بقیه کدهای قبلی تو ...
+
+# این خط رو اضافه کن تا فایل‌های HTML رو بشناسه
+@app.get("/")
+async def read_index():
+    return FileResponse('index.html')
+
 
 class ConnectionManager:
     """
