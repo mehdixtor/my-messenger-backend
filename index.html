@@ -24,18 +24,182 @@
         .login-screen button { padding: 10px 20px; background: #0088cc; color: white; border: none; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pink Rabbit 🐰</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐰</text></svg>">
+    <style>
+        body { 
+            font-family: Tahoma, sans-serif; 
+            background: #fff0f5; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* استایل صفحه ورود */
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: #fff0f5;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-screen h2 {
+            color: #ff69b4;
+            text-align: center;
+            z-index: 2;
+            margin-bottom: 20px;
+        }
+
+        .login-screen input {
+            padding: 12px;
+            width: 250px;
+            border: 2px solid #ffb6c1;
+            border-radius: 8px;
+            outline: none;
+            font-size: 16px;
+            text-align: center;
+            z-index: 2;
+        }
+
+        .login-screen button {
+            padding: 12px 24px;
+            background: #ff69b4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 15px;
+            z-index: 2;
+        }
+
+        .login-screen button:hover {
+            background: #ff1493;
+        }
+
+        /* خرگوش‌های دکوراتیو */
+        .rabbit-deco {
+            position: absolute;
+            font-size: 60px;
+            user-select: none;
+            animation: blink 2s infinite;
+            z-index: 0;
+        }
+
+        .rabbit-deco.left {
+            left: 20px;
+            bottom: 40px;
+        }
+
+        .rabbit-deco.right {
+            right: 20px;
+            bottom: 40px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.1); }
+        }
+
+        /* استایل صفحه چت */
+        .chat-container { 
+            width: 100%; 
+            max-width: 500px; 
+            height: 85vh;
+            background: white; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.2); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            border: 2px solid #ffb6c1;
+        }
+
+        .chat-header { 
+            background: #ff69b4; 
+            color: white; 
+            padding: 15px; 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 18px; 
+        }
+
+        .chat-messages { 
+            flex: 1; 
+            padding: 15px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            background: #fff5f8; 
+        }
+
+        .message { padding: 10px 14px; border-radius: 12px; max-width: 75%; word-break: break-word; font-size: 14px; }
+        .message.system { background: #ffe4e1; color: #d87093; align-self: center; font-size: 12px; border-radius: 20px; }
+        .message.user { background: #ffb6c1; color: #fff; align-self: flex-end; }
+        .message.other { background: white; color: #333; align-self: flex-start; border: 1px solid #ffc0cb; }
+
+        .chat-input { 
+            display: flex; 
+            padding: 10px; 
+            background: white; 
+            border-top: 1px solid #ffc0cb; 
+        }
+
+        .chat-input input { 
+            flex: 1; 
+            padding: 10px; 
+            border: 1px solid #ffb6c1; 
+            border-radius: 8px; 
+            outline: none; 
+            font-size: 14px; 
+        }
+
+        .chat-input button { 
+            background: #ff69b4; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin-right: 8px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+
+        .chat-input button:hover { background: #ff1493; }
+    </style>
+</head>
 <body>
 
     <!-- صفحه ورود -->
     <div id="loginScreen" class="login-screen">
-        <h2 style="color: #333;">به پیام رسان 🐰 Pink Rabbit 🐰 خوش اومدی</h2>
+        <!-- خرگوش‌ها -->
+        <div class="rabbit-deco left">🐰</div>
+        <div class="rabbit-deco right">🐰</div>
+
+        <h2 style="color: #ff69b4;">به پیام رسان 🐰 Pink Rabbit 🐰 خوش اومدی</h2>
         <input type="text" id="usernameInput" placeholder="نام خود را وارد کنید...">
         <button onclick="connectChat()">ورود به چت</button>
     </div>
 
     <!-- صفحه چت -->
     <div id="chatScreen" class="chat-container" style="display: none;">
-        <div class="chat-header" id="chatTitle">پنجره چت</div>
+        <div class="chat-header" id="chatTitle">پنل چت</div>
         <div class="chat-messages" id="messagesList"></div>
         <div class="chat-input">
             <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." onkeypress="checkEnter(event)">
@@ -54,12 +218,11 @@
                 return;
             }
 
-            // اصلاح هوشمند آدرس WebSocket برای کارکرد روی Render و Localhost
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host; 
             const wsUrl = `${protocol}//${host}/ws/${username}`;
 
-            console.log("Connecting to:", wsUrl); // برای عیب‌یابی در کنسول مرورگر
+            console.log("Connecting to:", wsUrl);
             ws = new WebSocket(wsUrl);
 
             ws.onopen = function() {
@@ -86,7 +249,6 @@
             };
 
             ws.onclose = function(event) {
-                console.log("Connection closed", event);
                 alert('ارتباط با سرور قطع شد! در حال تلاش مجدد برای اتصال...');
                 setTimeout(() => { location.reload(); }, 3000);
             };
@@ -114,4 +276,5 @@
         }
     </script>
 </body>
+
 </html>
