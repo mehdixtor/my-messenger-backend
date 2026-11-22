@@ -2,16 +2,19 @@ import datetime
 from typing import List, Dict, Any
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, WebSocket
+from fastapi.responses import FileResponse # این حتما باید باشه
+# بقیه import ها...
 
-# ... بقیه کدهای قبلی تو ...
+app = FastAPI() # <--- این خط خیلی مهمه! باید حتماً قبل از بقیه کدها باشه
 
-# این خط رو اضافه کن تا فایل‌های HTML رو بشناسه
+# حالا می‌تونی بقیه رو بنویسی
 @app.get("/")
 async def read_index():
     return FileResponse('index.html')
 
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
 
 class ConnectionManager:
     """
