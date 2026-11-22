@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پیام‌رسان من</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .chat-container { width: 100%; max-width: 500px; background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 80vh; overflow: hidden; }
+        .chat-header { background: #0088cc; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #e7ebf0; }
+        .message { padding: 10px 14px; border-radius: 8px; max-width: 75%; word-break: break-word; font-size: 14px; }
+        .message.system { background: #dfe4ea; color: #57606f; align-self: center; font-size: 12px; border-radius: 20px; }
+        .message.user { background: #dcf8c6; align-self: flex-end; }
+        .message.other { background: white; align-self: flex-start; }
+        .chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #ddd; }
+        .chat-input input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 14px; }
+        .chat-input button { background: #0088cc; color: white; border: none; padding: 10px 20px; margin-right: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .chat-input button:hover { background: #006699; }
+        .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
+        .login-screen input { padding: 10px; width: 250px; border: 1px solid #ccc; border-radius: 6px; text-align: center; }
+        .login-screen button { padding: 10px 20px; background: #0088cc; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- صفحه ورود -->
+    <div id="loginScreen" class="login-screen">
+        <h2>ورود به پیام‌رسان</h2>
+        <input type="text" id="usernameInput" placeholder="نام خود را وارد کنید...">
+        <button onclick="connectChat()">ورود به چت</button>
+    </div>
+
+    <!-- صفحه چت -->
+    <div id="chatScreen" class="chat-container" style="display: none;">
+        <div class="chat-header" id="chatTitle">پنجره چت</div>
+        <div class="chat-messages" id="messagesList"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." onkeypress="checkEnter(event)">
+            <button onclick="sendMessage()">ارسال</button>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let username;
+
+        function connectChat() {
+            username = document.getElementById('usernameInput').value.trim();
+            if (!username) {
+                alert('لطفاً یک نام وارد کنید!');
+                return;
+            }
+
+            // اتصال به سرور پایتون روی پورت 8000
+            ws = new WebSocket(`ws://127.0.0.1:8000/ws/${username}`);
+
+            ws.onopen = function() {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('chatScreen').style.display = 'flex';
+                document.getElementById('chatTitle').innerText = `چت آنلاین - کاربر: ${username}`;
+            };
+
+            ws.onmessage = function(event) {
+                let data = JSON.parse(event.data);
+                let messagesList = document.getElementById('messagesList');
+                let msgDiv = document.createElement('div');
+
+                if (data.type === 'system') {
+                    msgDiv.className = 'message system';
+                    msgDiv.innerText = `${data.content} (${data.timestamp})`;
+                } else {
+                    msgDiv.className = (data.user === username) ? 'message user' : 'message other';
+                    msgDiv.innerText = `${data.user}: ${data.content} (${data.timestamp})`;
+                }
+
+                messagesList.appendChild(msgDiv);
+                messagesList.scrollTop = messagesList.scrollHeight;
+            };
+
+            ws.onclose = function() {
+                alert('ارتباط با سرور قطع شد!');
+                location.reload();
+            };
+        }
+
+        function sendMessage() {
+            let input = document.getElementById('messageInput');
+            let text = input.value.trim();
+            if (text && ws) {
+                ws.send(text);
+                input.value = '';
+            }
+        }
+
+        function checkEnter(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+</body>
+</html>
