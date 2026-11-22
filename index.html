@@ -26,7 +26,7 @@
 
     <!-- صفحه ورود -->
     <div id="loginScreen" class="login-screen">
-        <h2>ورود به پیام‌رسان</h2>
+        <h2 style="color: #333;">ورود به پیام‌رسان</h2>
         <input type="text" id="usernameInput" placeholder="نام خود را وارد کنید...">
         <button onclick="connectChat()">ورود به چت</button>
     </div>
@@ -52,8 +52,13 @@
                 return;
             }
 
-            // اتصال به سرور پایتون روی پورت 8000
-            ws = new WebSocket(`ws://127.0.0.1:8000/ws/${username}`);
+            // اصلاح هوشمند آدرس WebSocket برای کارکرد روی Render و Localhost
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host; 
+            const wsUrl = `${protocol}//${host}/ws/${username}`;
+
+            console.log("Connecting to:", wsUrl); // برای عیب‌یابی در کنسول مرورگر
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = function() {
                 document.getElementById('loginScreen').style.display = 'none';
@@ -78,18 +83,25 @@
                 messagesList.scrollTop = messagesList.scrollHeight;
             };
 
-            ws.onclose = function() {
-                alert('ارتباط با سرور قطع شد!');
-                location.reload();
+            ws.onclose = function(event) {
+                console.log("Connection closed", event);
+                alert('ارتباط با سرور قطع شد! در حال تلاش مجدد برای اتصال...');
+                setTimeout(() => { location.reload(); }, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error("WebSocket Error: ", error);
             };
         }
 
         function sendMessage() {
             let input = document.getElementById('messageInput');
             let text = input.value.trim();
-            if (text && ws) {
+            if (text && ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(text);
                 input.value = '';
+            } else if (ws && ws.readyState !== WebSocket.OPEN) {
+                alert('ارتباط برقرار نیست. لطفا صفحه را رفرش کنید.');
             }
         }
 
