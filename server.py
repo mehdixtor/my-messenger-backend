@@ -72,10 +72,12 @@ async def api_login(req: PhoneReq):
         }
 
     code = gen_code()
+    # ارسال مقدار اولیه برای username تا با خطای دیتابیس مواجه نشویم
     supabase.table("users").insert({
         "phone": phone, 
         "code": code,
-        "display_name": phone # پیش‌فرض
+        "display_name": phone,
+        "username": "user_" + phone[-4:] # مقدار موقت برای جلوگیری از ارور دیتابیس
     }).execute()
     
     return {
@@ -134,12 +136,10 @@ async def api_history(chat_id: str = "public", me: str = ""):
     
     out = []
     for m in res.data:
-        # تبدیل زمان ذخیره شده در دیتابیس به ساعت ایران
         dt_str = m.get("created_at") or ""
         time_part = ""
         if dt_str:
             try:
-                # فرض بر این است که دیتابیس UTC ذخیره می‌کند، آن را به منطقه زمانی ایران منتقل می‌کنیم
                 utc_dt = datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
                 iran_dt = utc_dt.astimezone(IRAN_TZ)
                 time_part = iran_dt.strftime("%H:%M")
