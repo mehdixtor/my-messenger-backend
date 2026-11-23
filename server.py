@@ -22,7 +22,6 @@ app = FastAPI()
 
 # مدیریت اتصال‌های فعال
 active_connections: List[WebSocket] = []
-# نگهداری نام کاربران آنلاین برای نمایش در سیستم
 online_map = {}  # phone -> display_name
 
 class PhoneReq(BaseModel):
@@ -53,23 +52,33 @@ async def get_status():
         "server_time": datetime.datetime.now().isoformat()
     }
 
-# ---------- ورود و مدیریت کد OTP ----------
+# ---------- ورود و مدیریت کد OTP (امن شده) ----------
 @app.post("/api/login")
 async def api_login(req: PhoneReq):
     phone = req.phone.strip()
     res = supabase.table("users").select("*").eq("phone", phone).execute()
 
     if res.data:
-        return {"is_new": False, "code": res.data[0]["code"]}
+        # اگر کاربر قبلاً اکانت داشته باشد، به هیچ وجه کد را در پاسخ نمی‌فرستیم!
+        return {
+            "is_new": False, 
+            "message": "کد مربوط به این شماره را وارد کنید."
+        }
 
+    # اگر کاربر جدید است، کد جدید می‌سازیم
     code = gen_code()
-    # ذخیره کاربر جدید با کد تایید
     supabase.table("users").insert({
         "phone": phone, 
         "code": code,
         "display_name": phone # پیش‌فرض
     }).execute()
-    return {"is_new": True, "code": code}
+    
+    # فقط برای کاربران جدید کد را برمی‌گردانیم تا بتوانند ثبت‌نام کنند
+    return {
+        "is_new": True, 
+        "code": code,
+        "message": "کد تایید برای شماره جدید صادر شد."
+    }
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
@@ -86,7 +95,6 @@ async def api_verify(req: VerifyReq):
 # ---------- مدیریت پروفایل ----------
 @app.post("/api/profile")
 async def api_profile(req: ProfileReq):
-    # بررسی تکراری بودن نام کاربری
     dup = supabase.table("users").select("phone").eq("username", req.username.strip()).execute()
     if dup.data and dup.data[0]["phone"] != req.phone:
         return {"ok": False, "error": "این نام کاربری قبلاً گرفته شده"}
@@ -104,24 +112,17 @@ async def api_profile(req: ProfileReq):
 @app.get("/api/users")
 async def api_users(me: str = ""):
     res = supabase.table("users").select("phone,display_name,username,bio").execute()
-    # لیست کاربرانی که خودم نیستم
     users = [u for u in res.data if u["phone"] != me and u.get("display_name")]
     return {"users": users}
 
 # ---------- دریافت تاریخچه پیام‌ها ----------
 @app.get("/api/history")
 async def api_history(chat_id: str = "public", me: str = ""):
-    """
-    اگر chat_id برابر public باشد -> پیام‌های عمومی را می‌گیرد.
-    اگر chat_id یک شماره موبایل باشد -> پیام‌های بین من و آن شخص را می‌گیرد.
-    """
     q = supabase.table("messages").select("*")
     
     if chat_id == "public":
-        # پیام‌هایی که گیرنده آن‌ها NULL است (عمومی)
         q = q.is_("receiver_phone", "null")
     else:
-        # پیام‌هایی که یا من فرستنده هستم یا گیرنده (در چت خصوصی)
         q = q.or_(f"and(sender_phone.eq.{me},receiver_phone.eq.{chat_id}),"
                   f"and(sender_phone.eq.{chat_id},receiver_phone.eq.{me})")
     
@@ -139,18 +140,16 @@ async def api_history(chat_id: str = "public", me: str = ""):
         })
     return {"messages": out}
 
-# ---------- وب‌سوکت (قلب تپنده پیام‌ها) ----------
+# ---------- وب‌سوکت ----------
 @app.websocket("/ws/{phone}")
 async def websocket_endpoint(websocket: WebSocket, phone: str):
     await websocket.accept()
     active_connections.append(websocket)
 
-    # پیدا کردن نام کاربر برای نمایش در سیستم
     res = supabase.table("users").select("display_name").eq("phone", phone).execute()
     display_name = res.data[0].get("display_name") if res.data else phone
     online_map[phone] = display_name
 
-    # اطلاع‌رسانی ورود کاربر به بقیه
     join_event = {
         "type": "system", 
         "content": f"⚠️ {display_name} وارد چت شد",
@@ -165,10 +164,9 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
             data = json.loads(raw_data)
             
             content = data.get("content", "")
-            chat_id = data.get("chat_id", "public") # اگر شماره موبایل باشد -> خصوصی، اگر public باشد -> عمومی
+            chat_id = data.get("chat_id", "public")
             receiver_phone = None if chat_id == "public" else chat_id
 
-            # ۱. ذخیره در دیتابیس
             supabase.table("messages").insert({
                 "sender_phone": phone,
                 "sender_name": display_name,
@@ -176,7 +174,6 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                 "receiver_phone": receiver_phone
             }).execute()
 
-            # ساخت پیام برای ارسال در WebSocket
             msg_payload = {
                 "type": "chat",
                 "user": display_name,
@@ -186,18 +183,8 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                 "chat_id": chat_id
             }
 
-            # ۲. ارسال پیام به همه (برای چت عمومی) یا فقط به گیرنده (برای چت خصوصی)
             for connection in active_connections:
-                # اگر چت عمومی است، به همه بفرست
-                if chat_id == "public":
-                    await connection.send_json(msg_payload)
-                else:
-                    # اگر چت خصوصی است، فقط به فرستنده و گیرنده بفرست
-                    # (در اینجا برای سادگی چک می‌کنیم که آیا اتصال مربوط به فرستنده یا گیرنده است)
-                    # نکته: در این نسخه ساده ما برای همه پخش می‌کنیم اما فرانت‌اند باید فیلتر کند
-                    # اما راه درست‌تر این است که ما بدانیم هر اتصال متعلق به کدام تلفن است.
-                    # فعلاً برای کارکرد سریع، همه را می‌فرستیم و فرانت‌اند فیلتر می‌کند.
-                    await connection.send_json(msg_payload)
+                await connection.send_json(msg_payload)
 
     except WebSocketDisconnect:
         if websocket in active_connections:

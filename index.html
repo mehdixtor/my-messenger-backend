@@ -145,12 +145,12 @@
         <button onclick="requestLogin()">ورود / ثبت‌نام</button>
     </div>
 
-    <!-- ============ مودال کد دائمی ============ -->
+    <!-- ============ مودال کد ورود ============ -->
     <div id="codeModal" class="modal">
         <div class="modal-content">
             <h3 id="codeTitle">کد ورود شما</h3>
-            <p id="codeDesc">این کد مخصوص شماره شماست و همیشه با همین کد وارد می‌شوید.</p>
-            <div class="code-box" id="codeBox">------</div>
+            <p id="codeDesc">لطفاً کد تایید را وارد کنید.</p>
+            <div class="code-box" id="codeBox" style="display: none;">------</div>
             <input type="text" id="codeInput" placeholder="کد را وارد کنید" style="text-align:center; direction:ltr; letter-spacing:3px;">
             <button onclick="submitCode()">تأیید و ورود</button>
         </div>
@@ -196,10 +196,9 @@
         let ws = null;
         let myPhone = "";
         let myProfile = { display_name: "", username: "", bio: "" };
-        let currentChat = "public"; // public یا شماره طرف مقابل
+        let currentChat = "public"; 
         let currentChatName = "چت عمومی";
 
-        /* ---------- کمکی ---------- */
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
@@ -222,14 +221,19 @@
 
                 if (data.error) { alert(data.error); return; }
 
-                document.getElementById('codeBox').innerText = data.code;
+                const codeBox = document.getElementById('codeBox');
 
                 if (data.is_new) {
+                    // کاربر جدید: کد ساخته شده و به او نشان داده می‌شود
+                    codeBox.innerText = data.code;
+                    codeBox.style.display = 'block';
                     document.getElementById('codeTitle').innerText = 'کد دائمی شما ساخته شد!';
                     document.getElementById('codeDesc').innerText = 'این کد را یادداشت کن؛ همیشه با همین کد وارد می‌شوی.';
                 } else {
-                    document.getElementById('codeTitle').innerText = 'کد ورود شما';
-                    document.getElementById('codeDesc').innerText = 'کد مخصوص شماره شماست. آن را وارد کن.';
+                    // کاربر قدیمی: امنیتی! سرور کد را نفرستاده است، پس کادر کد را مخفی می‌کنیم
+                    codeBox.style.display = 'none';
+                    document.getElementById('codeTitle').innerText = 'ورود به حساب';
+                    document.getElementById('codeDesc').innerText = 'کد دائمی مربوط به این شماره را وارد کنید.';
                 }
                 openModal('codeModal');
             } catch (e) {
@@ -255,7 +259,6 @@
                 closeModal('codeModal');
                 myProfile = data.user || {};
 
-                // اگر پروفایل ناقص بود، بپرس
                 if (!myProfile.display_name || !myProfile.username) {
                     openModal('profileModal');
                 } else {
@@ -301,14 +304,9 @@
             const wsUrl = `${protocol}//${window.location.host}/ws/${myPhone}`;
             ws = new WebSocket(wsUrl);
 
-            ws.onopen = function() {
-                console.log("Connected");
-            };
-
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
 
-                // فیلتر پی‌وی: فقط پیام‌هایی که مربوط به این چت است
                 if (data.type === 'chat' && data.chat_id && data.chat_id !== currentChat) return;
                 if (data.type === 'chat' && !data.chat_id && currentChat !== 'public') return;
                 if (data.type === 'system' && currentChat !== 'public') return;
@@ -359,7 +357,6 @@
                 const list = document.getElementById('usersList');
                 list.innerHTML = '';
 
-                // دکمه چت عمومی
                 const pub = document.createElement('div');
                 pub.className = 'user-row';
                 pub.innerHTML = `<div class="avatar-circle" style="background:#ffe4e1">🌐</div>
