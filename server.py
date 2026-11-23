@@ -1,5 +1,6 @@
 import os
 import datetime
+from zoneinfo import ZoneInfo
 import random
 import string
 import json
@@ -8,6 +9,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
+
+# تنظیم منطقه زمانی ایران
+IRAN_TZ = ZoneInfo("Asia/Tehran")
+
+def get_iran_time():
+    return datetime.datetime.now(IRAN_TZ)
 
 # تنظیمات Supabase از Environment Variables (Render)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -49,7 +56,7 @@ async def get_status():
     return {
         "status": "Online", 
         "online_users": len(active_connections),
-        "server_time": datetime.datetime.now().isoformat()
+        "server_time": get_iran_time().isoformat()
     }
 
 # ---------- ورود و مدیریت کد OTP (امن شده) ----------
@@ -59,13 +66,11 @@ async def api_login(req: PhoneReq):
     res = supabase.table("users").select("*").eq("phone", phone).execute()
 
     if res.data:
-        # اگر کاربر قبلاً اکانت داشته باشد، به هیچ وجه کد را در پاسخ نمی‌فرستیم!
         return {
             "is_new": False, 
             "message": "کد مربوط به این شماره را وارد کنید."
         }
 
-    # اگر کاربر جدید است، کد جدید می‌سازیم
     code = gen_code()
     supabase.table("users").insert({
         "phone": phone, 
@@ -73,7 +78,6 @@ async def api_login(req: PhoneReq):
         "display_name": phone # پیش‌فرض
     }).execute()
     
-    # فقط برای کاربران جدید کد را برمی‌گردانیم تا بتوانند ثبت‌نام کنند
     return {
         "is_new": True, 
         "code": code,
@@ -130,12 +134,24 @@ async def api_history(chat_id: str = "public", me: str = ""):
     
     out = []
     for m in res.data:
+        # تبدیل زمان ذخیره شده در دیتابیس به ساعت ایران
+        dt_str = m.get("created_at") or ""
+        time_part = ""
+        if dt_str:
+            try:
+                # فرض بر این است که دیتابیس UTC ذخیره می‌کند، آن را به منطقه زمانی ایران منتقل می‌کنیم
+                utc_dt = datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                iran_dt = utc_dt.astimezone(IRAN_TZ)
+                time_part = iran_dt.strftime("%H:%M")
+            except:
+                time_part = dt_str[11:16]
+
         out.append({
             "type": "chat",
             "user": m["sender_name"],
             "sender_phone": m["sender_phone"],
             "content": m["content"],
-            "timestamp": (m.get("created_at") or "")[11:16],
+            "timestamp": time_part,
             "chat_id": m.get("receiver_phone") or "public"
         })
     return {"messages": out}
@@ -153,7 +169,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
     join_event = {
         "type": "system", 
         "content": f"⚠️ {display_name} وارد چت شد",
-        "timestamp": datetime.datetime.now().strftime("%H:%M")
+        "timestamp": get_iran_time().strftime("%H:%M")
     }
     for c in active_connections:
         await c.send_json(join_event)
@@ -179,7 +195,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                 "user": display_name,
                 "sender_phone": phone,
                 "content": content,
-                "timestamp": datetime.datetime.now().strftime("%H:%M"),
+                "timestamp": get_iran_time().strftime("%H:%M"),
                 "chat_id": chat_id
             }
 
@@ -194,7 +210,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
         leave_event = {
             "type": "system", 
             "content": f"❌ {display_name} از چت خارج شد",
-            "timestamp": datetime.datetime.now().strftime("%H:%M")
+            "timestamp": get_iran_time().strftime("%H:%M")
         }
         for c in active_connections:
             await c.send_json(leave_event)
