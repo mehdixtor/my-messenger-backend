@@ -60,38 +60,29 @@ async def get_status():
     }
 
 # ---------- ورود و مدیریت کد OTP (امن شده) ----------
-# ---------- ورود و مدیریت کد OTP (امن شده) ----------
-# ---------- ورود و مدیریت کد OTP (امن شده) ----------
 @app.post("/api/login")
 async def api_login(req: PhoneReq):
-    try:
-        phone = req.phone.strip()
-        res = supabase.table("users").select("*").eq("phone", phone).execute()
+    phone = req.phone.strip()
+    res = supabase.table("users").select("*").eq("phone", phone).execute()
 
-        if res.data:
-            return {
-                "is_new": False, 
-                "message": "کد مربوط به این شماره را وارد کنید."
-            }
-
-        code = gen_code()
-        # فقط فیلدهای پایه و قطعی را درج می‌کنیم تا خطای ستون نگیریم
-        insert_res = supabase.table("users").insert({
-            "phone": phone, 
-            "code": code,
-            "display_name": phone
-        }).execute()
-        
+    if res.data:
         return {
-            "is_new": True, 
-            "code": code,
-            "message": "کد تایید برای شماره جدید صادر شد."
+            "is_new": False, 
+            "message": "کد مربوط به این شماره را وارد کنید."
         }
-    except Exception as e:
-        # چاپ خطای کامل در کنسول رندر و ارسال جزئیات به کلاینت
-        err_msg = getattr(e, "message", str(e))
-        print(f"LOGIN ERROR FULL: {repr(e)}")
-        return {"error": f"خطای دیتابیس: {err_msg}"}
+
+    code = gen_code()
+    supabase.table("users").insert({
+        "phone": phone, 
+        "code": code,
+        "display_name": phone # پیش‌فرض
+    }).execute()
+    
+    return {
+        "is_new": True, 
+        "code": code,
+        "message": "کد تایید برای شماره جدید صادر شد."
+    }
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
@@ -143,10 +134,12 @@ async def api_history(chat_id: str = "public", me: str = ""):
     
     out = []
     for m in res.data:
+        # تبدیل زمان ذخیره شده در دیتابیس به ساعت ایران
         dt_str = m.get("created_at") or ""
         time_part = ""
         if dt_str:
             try:
+                # فرض بر این است که دیتابیس UTC ذخیره می‌کند، آن را به منطقه زمانی ایران منتقل می‌کنیم
                 utc_dt = datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
                 iran_dt = utc_dt.astimezone(IRAN_TZ)
                 time_part = iran_dt.strftime("%H:%M")
