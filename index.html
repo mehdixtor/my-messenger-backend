@@ -141,7 +141,8 @@
         <div class="rabbit-deco left">🐰</div>
         <div class="rabbit-deco right">🐰</div>
         <h2>به پیام‌رسان 🐰 Pink Rabbit 🐰 خوش اومدی</h2>
-        <input type="tel" id="phoneInput" placeholder="شماره موبایل (مثلاً 09123456789)" maxlength="11">
+        <!-- غیرفعال کردن پیشنهادهای مرورگر با autocomplete="off" -->
+        <input type="tel" id="phoneInput" placeholder="شماره موبایل (مثلاً 09123456789)" maxlength="11" autocomplete="off" name="no-autofill-phone">
         <button onclick="requestLogin()">ورود / ثبت‌نام</button>
     </div>
 
@@ -151,7 +152,8 @@
             <h3 id="codeTitle">کد ورود شما</h3>
             <p id="codeDesc">لطفاً کد تایید را وارد کنید.</p>
             <div class="code-box" id="codeBox" style="display: none;">------</div>
-            <input type="text" id="codeInput" placeholder="کد را وارد کنید" style="text-align:center; direction:ltr; letter-spacing:3px;">
+            <!-- جلوگیری از ذخیره یا پیشنهاد کد با autocomplete="off" و name تصادفی -->
+            <input type="text" id="codeInput" placeholder="کد را وارد کنید" autocomplete="off" name="no-autofill-code" style="text-align:center; direction:ltr; letter-spacing:3px;">
             <button onclick="submitCode()">تأیید و ورود</button>
         </div>
     </div>
@@ -160,9 +162,9 @@
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <h3>پروفایل خودت رو بساز 🐰</h3>
-            <input type="text" id="displayNameInput" placeholder="نام نمایشی (مثلاً مهدی)">
-            <input type="text" id="usernameInput" placeholder="نام کاربری (مثلاً mehdixtor)">
-            <textarea id="bioInput" rows="3" placeholder="بیوگرافی کوتاه..."></textarea>
+            <input type="text" id="displayNameInput" placeholder="نام نمایشی (مثلاً مهدی)" autocomplete="off">
+            <input type="text" id="usernameInput" placeholder="نام کاربری (مثلاً mehdixtor)" autocomplete="off">
+            <textarea id="bioInput" rows="3" placeholder="بیوگرافی کوتاه..." autocomplete="off"></textarea>
             <button onclick="saveProfile()">ذخیره و ورود به چت</button>
         </div>
     </div>
@@ -187,7 +189,7 @@
         </div>
         <div class="chat-messages" id="messagesList"></div>
         <div class="chat-input">
-            <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." onkeypress="checkEnter(event)">
+            <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." autocomplete="off" onkeypress="checkEnter(event)">
             <button onclick="sendMessage()">ارسال</button>
         </div>
     </div>
@@ -224,13 +226,11 @@
                 const codeBox = document.getElementById('codeBox');
 
                 if (data.is_new) {
-                    // کاربر جدید: کد ساخته شده و به او نشان داده می‌شود
                     codeBox.innerText = data.code;
                     codeBox.style.display = 'block';
                     document.getElementById('codeTitle').innerText = 'کد دائمی شما ساخته شد!';
                     document.getElementById('codeDesc').innerText = 'این کد را یادداشت کن؛ همیشه با همین کد وارد می‌شوی.';
                 } else {
-                    // کاربر قدیمی: امنیتی! سرور کد را نفرستاده است، پس کادر کد را مخفی می‌کنیم
                     codeBox.style.display = 'none';
                     document.getElementById('codeTitle').innerText = 'ورود به حساب';
                     document.getElementById('codeDesc').innerText = 'کد دائمی مربوط به این شماره را وارد کنید.';
