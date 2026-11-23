@@ -21,7 +21,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL یا SUPABASE_KEY تنظیم نشده است! لطفاً در Render بررسی کنید.")
+    # برای تست لوکال اگر متغیرها ست نشده باشند، خطای واضح می‌دهد
+    print("ERROR: SUPABASE_URL یا SUPABASE_KEY در محیط یافت نشد!")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -59,120 +60,146 @@ async def get_status():
         "server_time": get_iran_time().isoformat()
     }
 
-# ---------- ورود و مدیریت کد OTP (امن شده) ----------
+# ---------- ورود و مدیریت کد OTP ----------
 @app.post("/api/login")
 async def api_login(req: PhoneReq):
     phone = req.phone.strip()
-    res = supabase.table("users").select("*").eq("phone", phone).execute()
+    try:
+        res = supabase.table("users").select("*").eq("phone", phone).execute()
 
-    if res.data:
+        if res.data:
+            return {
+                "is_new": False, 
+                "message": "کد تایید برای شماره شما ارسال شد."
+            }
+
+        code = gen_code()
+        supabase.table("users").insert({
+            "phone": phone, 
+            "code": code,
+            "display_name": phone,
+            "username": f"user_{phone.replace('+', '')[-4:]}" # نام کاربری موقت
+        }).execute()
+        
         return {
-            "is_new": False, 
-            "message": "کد مربوط به این شماره را وارد کنید."
+            "is_new": True, 
+            "code": code,
+            "message": "کد تایید برای شماره جدید صادر شد."
         }
-
-    code = gen_code()
-    supabase.table("users").insert({
-        "phone": phone, 
-        "code": code,
-        "display_name": phone # پیش‌فرض
-    }).execute()
-    
-    return {
-        "is_new": True, 
-        "code": code,
-        "message": "کد تایید برای شماره جدید صادر شد."
-    }
+    except Exception as e:
+        return {"is_new": False, "error": str(e)}
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
-    res = supabase.table("users").select("*").eq("phone", req.phone.strip()).execute()
-    if not res.data:
-        return {"ok": False, "error": "کاربر پیدا نشد"}
-    
-    user = res.data[0]
-    if str(user["code"]) != req.code.strip():
-        return {"ok": False, "error": "کد اشتباه است"}
-    
-    return {"ok": True, "user": user}
+    try:
+        res = supabase.table("users").select("*").eq("phone", req.phone.strip()).execute()
+        if not res.data:
+            return {"ok": False, "error": "کاربر پیدا نشد"}
+        
+        user = res.data[0]
+        if str(user["code"]) != req.code.strip():
+            return {"ok": False, "error": "کد اشتباه است"}
+        
+        return {"ok": True, "user": user}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # ---------- مدیریت پروفایل ----------
 @app.post("/api/profile")
 async def api_profile(req: ProfileReq):
-    dup = supabase.table("users").select("phone").eq("username", req.username.strip()).execute()
-    if dup.data and dup.data[0]["phone"] != req.phone:
-        return {"ok": False, "error": "این نام کاربری قبلاً گرفته شده"}
+    try:
+        # چک کردن تکراری نبودن نام کاربری
+        dup = supabase.table("users").select("phone").eq("username", req.username.strip()).execute()
+        if dup.data and dup.data[0]["phone"] != req.phone:
+            return {"ok": False, "error": "این نام کاربری قبلاً گرفته شده"}
 
-    supabase.table("users").update({
-        "display_name": req.display_name.strip(),
-        "username": req.username.strip(),
-        "bio": req.bio.strip()
-    }).eq("phone", req.phone).execute()
+        supabase.table("users").update({
+            "display_name": req.display_name.strip(),
+            "username": req.username.strip(),
+            "bio": req.bio.strip()
+        }).eq("phone", req.phone).execute()
 
-    res = supabase.table("users").select("*").eq("phone", req.phone).execute()
-    return {"ok": True, "user": res.data[0]}
+        res = supabase.table("users").select("*").eq("phone", req.phone).execute()
+        return {"ok": True, "user": res.data[0]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 # ---------- دریافت لیست کاربران ----------
 @app.get("/api/users")
 async def api_users(me: str = ""):
-    res = supabase.table("users").select("phone,display_name,username,bio").execute()
-    users = [u for u in res.data if u["phone"] != me and u.get("display_name")]
-    return {"users": users}
+    try:
+        res = supabase.table("users").select("phone,display_name,username,bio").execute()
+        # فیلتر کردن کاربر جاری و کسانی که نام نمایش ندارند
+        users = [u for u in res.data if u["phone"] != me and u.get("display_name")]
+        return {"users": users}
+    except Exception as e:
+        return {"users": [], "error": str(e)}
 
 # ---------- دریافت تاریخچه پیام‌ها ----------
 @app.get("/api/history")
 async def api_history(chat_id: str = "public", me: str = ""):
-    q = supabase.table("messages").select("*")
-    
-    if chat_id == "public":
-        q = q.is_("receiver_phone", "null")
-    else:
-        q = q.or_(f"and(sender_phone.eq.{me},receiver_phone.eq.{chat_id}),"
-                  f"and(sender_phone.eq.{chat_id},receiver_phone.eq.{me})")
-    
-    res = q.order("created_at", desc=False).execute()
-    
-    out = []
-    for m in res.data:
-        # تبدیل زمان ذخیره شده در دیتابیس به ساعت ایران
-        dt_str = m.get("created_at") or ""
-        time_part = ""
-        if dt_str:
-            try:
-                # فرض بر این است که دیتابیس UTC ذخیره می‌کند، آن را به منطقه زمانی ایران منتقل می‌کنیم
-                utc_dt = datetime.datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                iran_dt = utc_dt.astimezone(IRAN_TZ)
-                time_part = iran_dt.strftime("%H:%M")
-            except:
-                time_part = dt_str[11:16]
+    try:
+        q = supabase.table("messages").select("*")
+        
+        if chat_id == "public":
+            # پیام‌های عمومی (که گیرنده ندارند)
+            q = q.is_("receiver_phone", "null")
+        else:
+            # پیام‌های مستقیم (PV)
+            q = q.or_(f"and(sender_phone.eq.{me},receiver_phone.eq.{chat_id}),"
+                      f"and(sender_phone.eq.{chat_id},receiver_phone.eq.{me})")
+        
+        res = q.order("created_at", desc=False).execute()
+        
+        out = []
+        for m in res.data:
+            # تبدیل زمان UTC دیتابیس به ساعت ایران
+            dt_str = m.get("created_at") or ""
+            time_part = ""
+            if dt_str:
+                try:
+                    # هندل کردن فرمت Z یا آفست‌های مختلف
+                    dt_clean = dt_str.replace("Z", "+00:00")
+                    utc_dt = datetime.datetime.fromisoformat(dt_clean)
+                    iran_dt = utc_dt.astimezone(IRAN_TZ)
+                    time_part = iran_dt.strftime("%H:%M")
+                except:
+                    time_part = dt_str[11:16]
 
-        out.append({
-            "type": "chat",
-            "user": m["sender_name"],
-            "sender_phone": m["sender_phone"],
-            "content": m["content"],
-            "timestamp": time_part,
-            "chat_id": m.get("receiver_phone") or "public"
-        })
-    return {"messages": out}
+            out.append({
+                "type": "chat",
+                "user": m["sender_name"],
+                "sender_phone": m["sender_phone"],
+                "content": m["content"],
+                "timestamp": time_part,
+                "chat_id": m.get("receiver_phone") or "public"
+            })
+        return {"messages": out}
+    except Exception as e:
+        return {"messages": [], "error": str(e)}
 
-# ---------- وب‌سوکت ----------
+# ---------- وب‌سوکت (Real-time) ----------
 @app.websocket("/ws/{phone}")
 async def websocket_endpoint(websocket: WebSocket, phone: str):
     await websocket.accept()
     active_connections.append(websocket)
 
+    # دریافت نام نمایش برای اطلاع‌رسانی ورود
     res = supabase.table("users").select("display_name").eq("phone", phone).execute()
     display_name = res.data[0].get("display_name") if res.data else phone
     online_map[phone] = display_name
 
+    # اطلاع‌رسانی ورود کاربر به بقیه
     join_event = {
         "type": "system", 
         "content": f"⚠️ {display_name} وارد چت شد",
         "timestamp": get_iran_time().strftime("%H:%M")
     }
     for c in active_connections:
-        await c.send_json(join_event)
+        try:
+            await c.send_json(join_event)
+        except:
+            pass
 
     try:
         while True:
@@ -183,6 +210,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
             chat_id = data.get("chat_id", "public")
             receiver_phone = None if chat_id == "public" else chat_id
 
+            # ذخیره در دیتابیس
             supabase.table("messages").insert({
                 "sender_phone": phone,
                 "sender_name": display_name,
@@ -190,6 +218,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                 "receiver_phone": receiver_phone
             }).execute()
 
+            # ارسال پیام به همه (بر اساس ساختار UI جدید که همه پیام‌ها را دریافت می‌کنند و کلاینت فیلتر می‌کند)
             msg_payload = {
                 "type": "chat",
                 "user": display_name,
@@ -200,7 +229,10 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
             }
 
             for connection in active_connections:
-                await connection.send_json(msg_payload)
+                try:
+                    await connection.send_json(msg_payload)
+                except:
+                    pass
 
     except WebSocketDisconnect:
         if websocket in active_connections:
@@ -213,7 +245,10 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
             "timestamp": get_iran_time().strftime("%H:%M")
         }
         for c in active_connections:
-            await c.send_json(leave_event)
+            try:
+                await c.send_json(leave_event)
+            except:
+                pass
     except Exception as e:
         print(f"WebSocket Error: {e}")
         if websocket in active_connections:
