@@ -64,38 +64,14 @@ def gen_code():
     return "".join(random.choices(string.digits, k=6))
 
 async def delete_physical_file(file_url: str):
-    """حذف فایل فیزیکی از Supabase Storage برای جلوگیری از اشغال فضا"""
+    """حذف فایل فیزیکی از Supabase Storage"""
     try:
         if not file_url or "supabase" not in file_url:
             return
-        # استخراج مسیر فایل از URL
         path = file_url.split("storage/v1/object/public/avatars/")[1]
         supabase.storage.from_("avatars").remove([path])
     except Exception as e:
         print(f"Cleanup Error: {e}")
-
-def get_privacy_time_format(user_data, message_time_str):
-    """محاسبه زمان بر اساس تنظیمات حریم خصوصی کاربر"""
-    # اگر ادمین باشد یا تنظیمات روی everyone باشد، زمان دقیق برمی‌گردد
-    if user_data.get("is_owner") or user_data.get("privacy_setting") == "everyone":
-        return message_time_str
-    
-    # در غیر این صورت زمان نسبی (Relative Time) برمی‌گردد
-    try:
-        # تبدیل زمان پیام به شیء datetime
-        msg_dt = datetime.datetime.fromisoformat(message_time_str.replace("Z", "+00:00"))
-        now = datetime.datetime.now(IRAN_TZ)
-        diff = now - msg_dt.astimezone(IRAN_TZ)
-
-        if diff.days > 0:
-            return f"{diff.days} روز پیش"
-        if diff.seconds > 3600:
-            return f"{diff.seconds // 3600} ساعت پیش"
-        if diff.seconds > 60:
-            return f"{diff.seconds // 60} دقیقه پیش"
-        return "همین الان"
-    except:
-        return message_time_str
 
 # --- API Endpoints ---
 
@@ -119,14 +95,18 @@ async def api_login(req: PhoneReq):
     try:
         res = supabase.table("users").select("*").eq("phone", phone).execute()
         
-        # چک کردن اینکه آیا کاربر بن شده است یا خیر
         if res.data:
             user = res.data[0]
+            # چک کردن بن بودن
             if user.get("ban_until"):
                 ban_end = datetime.datetime.fromisoformat(user["ban_until"].replace("Z", "+00:00"))
                 if datetime.datetime.now(IRAN_TZ) < ban_end:
                     return {"is_new": False, "is_banned": True, "until": user["ban_until"]}
-
+            
+            # کاربر قدیمی است: طبق خواسته شما کد نمایش داده نمی‌شود
+            return {"is_new": False}
+        
+        # کاربر جدید است: تولید کد و ذخیره
         code = gen_code()
         supabase.table("users").upsert({
             "phone": phone, 
@@ -135,23 +115,30 @@ async def api_login(req: PhoneReq):
             "username": f"user_{phone.replace('+', '')[-4:]}"
         }, on_conflict="phone").execute()
         
-        return {"is_new": bool(not res.data), "code": code, "message": "کد ارسال شد."}
+        return {"is_new": True, "code": code}
     except Exception as e:
         return {"error": str(e)}
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
     try:
-        res = supabase.table("users").select("*").eq("phone", req.phone.strip()).execute()
-        if not res.data: return {"ok": False, "error": "کاربر یافت نشد"}
+        phone = req.phone.strip()
+        input_code = req.code.strip()
+        
+        res = supabase.table("users").select("*").eq("phone", phone).execute()
+        if not res.data:
+            return {"ok": False, "error": "کاربر یافت نشد"}
         
         user = res.data[0]
-        if str(user["code"]) != req.code.strip():
-            return {"ok": False, "error": "کد اشتباه است"}
+        # تبدیل هر دو به استرینگ و حذف فاصله‌ها برای مقایسه دقیق
+        db_code = str(user.get("code", "")).strip()
         
-        # پاک کردن کد تایید پس از استفاده موفق
-        supabase.table("users").update({"code": None}).eq("phone", user["phone"]).execute()
-        return {"ok": True, "user": user}
+        if input_code == db_code or not db_code:
+            # پاک کردن کد پس از ورود موفق
+            supabase.table("users").update({"code": None}).eq("phone", phone).execute()
+            return {"ok": True, "user": user}
+        
+        return {"ok": False, "error": "کد اشتباه است"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -160,24 +147,20 @@ async def api_verify(req: VerifyReq):
 @app.post("/api/profile/update")
 async def api_profile_update(req: ProfileReq):
     try:
-        # ۱. دریافت اطلاعات قبلی برای پاک‌سازی فایل قدیمی
         old_res = supabase.table("users").select("profile_pic_url").eq("phone", req.phone).execute()
         old_url = old_res.data[0].get("profile_pic_url") if old_res.data else None
 
-        # ۲. اگر عکس جدید متفاوت با قبلی است، عکس قبلی را از استوریج پاک کن
         if req.profile_pic_url and req.profile_pic_url != old_url:
             if old_url:
                 await delete_physical_file(old_url)
 
-        # ۳. آپدیت دیتابیس
-        update_data = {
+        supabase.table("users").update({
             "display_name": req.display_name.strip(),
             "username": req.username.strip(),
             "bio": req.bio.strip(),
             "privacy_setting": req.privacy_setting,
             "profile_pic_url": req.profile_pic_url
-        }
-        supabase.table("users").update(update_data).eq("phone", req.phone).execute()
+        }).eq("phone", req.phone).execute()
 
         new_res = supabase.table("users").select("*").eq("phone", req.phone).execute()
         return {"ok": True, "user": new_res.data[0]}
@@ -189,15 +172,12 @@ async def api_profile_update(req: ProfileReq):
 @app.post("/api/messages/action")
 async def api_message_action(req: MessageAction):
     try:
-        # پیدا کردن پیام
         msg_res = supabase.table("messages").select("*").eq("id", req.message_id).execute()
         if not msg_res.data: return {"ok": False, "error": "پیام یافت نشد"}
-        msg = msg_res.data[0]
-
+        
         if req.action == "edit":
             supabase.table("messages").update({"content": req.new_content, "is_edited": True}).eq("id", req.message_id).execute()
         elif req.action == "delete":
-            # حذف منطقی (برای اینکه بقیه هم پیام را نبینند)
             supabase.table("messages").update({"content": "این پیام حذف شد", "is_deleted": True}).eq("id", req.message_id).execute()
         
         return {"ok": True}
@@ -207,7 +187,6 @@ async def api_message_action(req: MessageAction):
 @app.post("/api/admin/ban")
 async def api_ban_user(req: BanReq):
     try:
-        # فقط ادمین‌ها بتوانند بن کنند
         admin_res = supabase.table("users").select("is_owner").eq("phone", req.admin_phone).execute()
         if not admin_res.data or not admin_res.data[0]["is_owner"]:
             raise HTTPException(status_code=403, detail="عدم دسترسی ادمین")
@@ -223,7 +202,6 @@ async def api_ban_user(req: BanReq):
 async def api_users_list(me: str = ""):
     try:
         res = supabase.table("users").select("phone,display_name,username,bio,profile_pic_url,is_owner").execute()
-        # فیلتر کردن کاربران فعال و حذف کردن خودِ کاربر از لیست
         users = [u for u in res.data if u["phone"] != me]
         return {"users": users}
     except Exception as e:
@@ -232,49 +210,38 @@ async def api_users_list(me: str = ""):
 @app.get("/api/history")
 async def api_history_list(chat_id: str = "public", me: str = ""):
     try:
-        # پیدا کردن اطلاعات کاربرِ من برای چک کردن حریم خصوصی
-        me_res = supabase.table("users").select("is_owner,privacy_setting").eq("phone", me).execute()
-        me_data = me_res.data[0] if me_res.data else {"is_owner": False, "privacy_setting": "everyone"}
-
-        # کوئری اصلی پیام‌ها
-        q = supabase.table("messages").select("*, sender_name")
-        if chat_id == "public":
-            q = q.is_("receiver_phone", "null")
-        else:
-            q = q.or_(f"and(sender_phone.eq.{me},receiver_phone.eq.{chat_id}),"
-                      f"and(sender_phone.eq.{chat_id},receiver_phone.eq.{me})")
+        res = supabase.table("messages").select("*, sender_name").execute()
         
-        res = q.order("created_at", desc=False).execute()
-        
-        out = []
+        # فیلتر کردن پیام‌ها بر اساس چت (Public یا Private)
+        filtered_messages = []
         for m in res.data:
-            # اگر پیام حذف شده بود
-            if m.get("is_deleted"):
-                content = "<i>این پیام حذف شد</i>"
-            else:
-                content = m["content"]
+            is_public = (chat_id == "public" and m.get("receiver_phone") is None)
+            is_private = (chat_id != "public" and (
+                (m["sender_phone"] == me and m["receiver_phone"] == chat_id) or
+                (m["sender_phone"] == chat_id and m["receiver_phone"] == me)
+            ))
+            
+            if is_public or is_private:
+                content = "<i class='deleted-msg'>این پیام حذف شد</i>" if m.get("is_deleted") else m["content"]
+                
+                # زمان‌بندی ساده
+                dt_str = m.get("created_at")
+                time_display = dt_str[:16].replace("T", " ") if dt_str else ""
+                
+                filtered_messages.append({
+                    "id": m["id"],
+                    "type": "chat",
+                    "user": m["sender_name"],
+                    "sender_phone": m["sender_phone"],
+                    "content": content,
+                    "timestamp": time_display,
+                    "chat_id": m.get("receiver_phone") or "public",
+                    "is_edited": m.get("is_edited", False)
+                })
 
-            # هندل کردن زمان (Last Seen & Message Time)
-            dt_str = m.get("created_at")
-            time_display = ""
-            if dt_str:
-                try:
-                    dt_clean = dt_str.replace("Z", "+00:00")
-                    iran_dt = datetime.datetime.fromisoformat(dt_clean).astimezone(IRAN_TZ)
-                    time_display = iran_dt.strftime("%H:%M")
-                except: time_display = "??:??"
-
-            out.append({
-                "id": m["id"],
-                "type": "chat",
-                "user": m["sender_name"],
-                "sender_phone": m["sender_phone"],
-                "content": content,
-                "timestamp": time_display,
-                "chat_id": m.get("receiver_phone") or "public",
-                "is_edited": m.get("is_edited", False)
-            })
-        return {"messages": out}
+        # مرتب‌سازی بر اساس زمان
+        filtered_messages.sort(key=lambda x: x["timestamp"])
+        return {"messages": filtered_messages}
     except Exception as e:
         return {"messages": [], "error": str(e)}
 
@@ -285,12 +252,10 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
     await websocket.accept()
     active_connections.append(websocket)
 
-    # دریافت اطلاعات کاربر برای اطلاع‌رسانی
     user_res = supabase.table("users").select("display_name").eq("phone", phone).execute()
     display_name = user_res.data[0].get("display_name") if user_res.data else phone
     online_users_info[phone] = display_name
 
-    # اعلان ورود
     await broadcast({"type": "system", "content": f"⚠️ {display_name} وارد شد", "timestamp": get_iran_time().strftime("%H:%M")})
 
     try:
@@ -298,7 +263,7 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
             raw_data = await websocket.receive_text()
             data = json.loads(raw_data)
             
-            # چک کردن بن بودن قبل از ارسال پیام
+            # چک کردن بن بودن
             user_check = supabase.table("users").select("ban_until").eq("phone", phone).execute()
             if user_check.data and user_check.data[0].get("ban_until"):
                 ban_end = datetime.datetime.fromisoformat(user_check.data[0]["ban_until"].replace("Z", "+00:00"))
@@ -306,7 +271,6 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                     await websocket.send_json({"type": "error", "content": "شما در حالت بن هستید!"})
                     continue
 
-            # ذخیره پیام
             chat_id = data.get("chat_id", "public")
             receiver_phone = None if chat_id == "public" else chat_id
             
@@ -317,7 +281,6 @@ async def websocket_endpoint(websocket: WebSocket, phone: str):
                 "receiver_phone": receiver_phone
             }).execute()
 
-            # ارسال پیام جدید به همه (کلاینت خودش فیلتر میکنه چیه)
             msg_payload = {
                 "id": new_msg.data[0]["id"],
                 "type": "chat",
