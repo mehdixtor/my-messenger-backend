@@ -52,7 +52,7 @@
             box-shadow: 0 4px 20px rgba(255,105,180,0.2);
             overflow: hidden; border: 2px solid var(--pink-light);
         }
-        .main-layout { display: flex; width: 100%; height: 100%; position: relative; }
+        .main-layout { display: flex; width: 100%; height: 100%; }
 
         /* ستون سمت چپ: پروفایل */
         .sidebar-left {
@@ -60,7 +60,6 @@
             border-left: 1px solid #ffc0cb;
             display: flex; flex-direction: column;
             align-items: center; padding: 20px 15px; text-align: center;
-            flex-shrink: 0;
         }
         .profile-avatar-large {
             width: 75px; height: 75px; border-radius: 50%;
@@ -68,7 +67,6 @@
             display: flex; align-items: center; justify-content: center;
             font-size: 36px; margin: 0 auto 12px;
             border: 2px solid var(--pink-main);
-            object-fit: cover;
         }
         .profile-name { font-weight: bold; color: var(--pink-dark); font-size: 16px; margin-bottom: 4px; }
         .profile-username { color: #888; font-size: 12px; margin-bottom: 12px; }
@@ -77,39 +75,29 @@
             padding: 8px 15px; border: 1px solid var(--pink-main);
             color: var(--pink-main); background: none; border-radius: 20px;
             font-size: 12px; cursor: pointer; font-family: inherit; font-weight: bold;
-            width: 100%; transition: 0.2s; margin-top: auto;
+            width: 100%; transition: 0.2s;
         }
         .edit-profile-btn:hover { background: var(--pink-main); color: white; }
 
-        /* ستون وسط: چت */
+        /* ستون وسط: چت عمومی (دست‌نخورده) */
         .chat-center {
             flex: 1; display: flex; flex-direction: column;
             background: var(--chat-bg); border-left: 1px solid #ffc0cb;
-            min-width: 0;
         }
         .chat-header {
             background: var(--pink-main); color: white; padding: 12px 15px;
             display: flex; align-items: center; justify-content: space-between;
             font-weight: bold; font-size: 15px;
         }
-        .mobile-nav-btns { display: none; gap: 8px; }
-        .mobile-nav-btns button {
-            background: white; color: var(--pink-main); border: none;
-            padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer;
-        }
-
         .chat-messages {
             flex: 1; padding: 15px; overflow-y: auto;
             display: flex; flex-direction: column; gap: 10px;
         }
-        .message { padding: 9px 13px; border-radius: 12px; max-width: 80%; font-size: 14px; word-break: break-word; position: relative; }
+        .message { padding: 9px 13px; border-radius: 12px; max-width: 80%; font-size: 14px; word-break: break-word; }
         .message .sender { font-size: 11px; font-weight: bold; display: block; margin-bottom: 3px; }
         .message.system { background: #ffe4e1; color: #d87093; align-self: center; font-size: 12px; border-radius: 20px; }
         .message.user { background: var(--pink-main); color: white; align-self: flex-end; }
         .message.other { background: white; color: #333; align-self: flex-start; border: 1px solid #ffc0cb; }
-        .message-actions { display: none; position: absolute; left: 5px; top: 5px; font-size: 11px; gap: 4px; }
-        .message.user:hover .message-actions { display: flex; }
-        .message-actions span { cursor: pointer; background: rgba(0,0,0,0.1); padding: 2px 5px; border-radius: 4px; }
 
         .chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #ffc0cb; }
         .chat-input input {
@@ -125,7 +113,7 @@
         /* ستون سمت راست: پی‌وی‌ها */
         .sidebar-right {
             width: 270px; background: white;
-            display: flex; flex-direction: column; flex-shrink: 0;
+            display: flex; flex-direction: column;
         }
         .sidebar-right-header {
             padding: 14px; font-weight: bold; color: var(--pink-dark);
@@ -141,7 +129,7 @@
         .user-row .avatar-circle {
             width: 35px; height: 35px; border-radius: 50%; background: #ffe4e1;
             color: var(--pink-dark); display: flex; align-items: center; justify-content: center;
-            font-size: 15px; font-weight: bold; flex-shrink: 0; object-fit: cover;
+            font-size: 15px; font-weight: bold; flex-shrink: 0;
         }
         .user-row .info { flex: 1; text-align: right; overflow: hidden; }
         .user-row .info b { font-size: 13px; display: block; color: #333; }
@@ -159,7 +147,7 @@
             border: 2px solid var(--pink-light);
         }
         .modal-content h3 { margin: 0 0 5px; text-align: center; color: var(--pink-main); }
-        .modal-content input, .modal-content textarea, .modal-content select {
+        .modal-content input, .modal-content textarea {
             padding: 10px; border: 1px solid var(--pink-light); border-radius: 8px; outline: none; font-family: inherit; font-size: 14px; resize: none;
         }
         .modal-content button {
@@ -169,16 +157,6 @@
             background: #fff5f8; border: 2px dashed var(--pink-main); border-radius: 10px;
             padding: 14px; text-align: center; font-size: 26px; font-weight: bold;
             letter-spacing: 4px; color: var(--pink-dark); direction: ltr;
-        }
-
-        /* ریسپانسیو موبایل */
-        @media (max-width: 768px) {
-            .app-container { height: 100vh; border-radius: 0; border: none; }
-            .sidebar-left, .sidebar-right { display: none; width: 100%; height: 100%; }
-            .sidebar-left.active, .sidebar-right.active { display: flex; }
-            .chat-center { display: flex; width: 100%; height: 100%; }
-            .chat-center.hidden { display: none; }
-            .mobile-nav-btns { display: flex; }
         }
     </style>
 </head>
@@ -211,40 +189,28 @@
             <input type="text" id="displayNameInput" placeholder="نام نمایشی">
             <input type="text" id="usernameInput" placeholder="نام کاربری (مثلاً mehdi)">
             <textarea id="bioInput" rows="3" placeholder="بیوگرافی..."></textarea>
-            <label style="font-size: 12px; color: #666;">حریم خصوصی (Last Seen):</label>
-            <select id="privacySelect">
-                <option value="everyone">همه (نمایش زمان دقیق)</option>
-                <option value="nobody">هیچ‌کس (زمان نسبی)</option>
-            </select>
             <button onclick="saveProfile()">ذخیره تغییرات</button>
             <button onclick="closeModal('profileModal')" style="background:#ccc; margin-top:-4px;" id="closeProfileBtn">انصراف</button>
         </div>
     </div>
 
-    <!-- ساختار اصلی اپلیکیشن -->
+    <!-- ساختار اصلی اپلیکیشن (سه ستون) -->
     <div id="appContainer" class="app-container">
-        <div class="main-layout" id="mainLayout">
+        <div class="main-layout">
             
             <!-- ستون چپ: پروفایل کاربر -->
-            <div class="sidebar-left" id="sidebarLeft">
-                <div id="myAvatarContainer">
-                    <div class="profile-avatar-large" id="myAvatarLarge">🐰</div>
-                </div>
+            <div class="sidebar-left">
+                <div class="profile-avatar-large" id="myAvatarLarge">🐰</div>
                 <div class="profile-name" id="myDisplayNameDisplay">نام کاربر</div>
                 <div class="profile-username" id="myUsernameDisplay">@username</div>
                 <div class="profile-bio" id="myBioDisplay">بیوگرافی کاربر...</div>
                 <button class="edit-profile-btn" onclick="openEditProfile()">ویرایش پروفایل</button>
-                <button class="edit-profile-btn" onclick="switchMobileView('chat')" style="background:var(--pink-main); color:white; margin-top:10px;">بازگشت به چت</button>
             </div>
 
-            <!-- ستون وسط: چت -->
-            <div class="chat-center" id="chatCenter">
+            <!-- ستون وسط: چت (عمومی یا پی‌وی) -->
+            <div class="chat-center">
                 <div class="chat-header">
                     <span id="chatTitle">چت عمومی 🌐</span>
-                    <div class="mobile-nav-btns">
-                        <button onclick="switchMobileView('profile')">👤 پروفایل</button>
-                        <button onclick="switchMobileView('users')">👥 مخاطبین</button>
-                    </div>
                 </div>
                 <div class="chat-messages" id="messagesList"></div>
                 <div class="chat-input">
@@ -253,12 +219,9 @@
                 </div>
             </div>
 
-            <!-- ستون راست: لیست پی‌وی‌ها -->
-            <div class="sidebar-right" id="sidebarRight">
-                <div class="sidebar-right-header">
-                    گفتگوها و مخاطبین
-                    <button onclick="switchMobileView('chat')" style="float:left; background:none; border:none; color:var(--pink-main); font-weight:bold; cursor:pointer;" class="mobile-nav-btns">✖ بستن</button>
-                </div>
+            <!-- ستون راست: لیست پی‌وی‌ها و چت عمومی -->
+            <div class="sidebar-right">
+                <div class="sidebar-right-header">گفتگوها و مخاطبین</div>
                 <div class="users-list" id="usersList"></div>
             </div>
 
@@ -268,31 +231,12 @@
     <script>
         let ws = null;
         let myPhone = "";
-        let myProfile = { display_name: "", username: "", bio: "", privacy_setting: "everyone", profile_pic_url: null };
+        let myProfile = { display_name: "", username: "", bio: "" };
         let currentChat = "public"; 
         let currentChatName = "چت عمومی 🌐";
 
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-        // مدیریت ناوبری در موبایل
-        function switchMobileView(view) {
-            const left = document.getElementById('sidebarLeft');
-            const right = document.getElementById('sidebarRight');
-            const center = document.getElementById('chatCenter');
-
-            left.classList.remove('active');
-            right.classList.remove('active');
-            center.classList.remove('hidden');
-
-            if (view === 'profile') {
-                left.classList.add('active');
-                center.classList.add('hidden');
-            } else if (view === 'users') {
-                right.classList.add('active');
-                center.classList.add('hidden');
-            }
-        }
 
         async function requestLogin() {
             const phone = document.getElementById('phoneInput').value.trim();
@@ -307,11 +251,6 @@
                 });
                 const data = await res.json();
                 if (data.error) { alert(data.error); return; }
-
-                if (data.is_banned) {
-                    alert(`حساب شما تا زمان ${data.until} بن شده است!`);
-                    return;
-                }
 
                 const codeBox = document.getElementById('codeBox');
                 if (data.is_new) {
@@ -357,7 +296,6 @@
             document.getElementById('displayNameInput').value = myProfile.display_name || '';
             document.getElementById('usernameInput').value = myProfile.username || '';
             document.getElementById('bioInput').value = myProfile.bio || '';
-            document.getElementById('privacySelect').value = myProfile.privacy_setting || 'everyone';
             document.getElementById('closeProfileBtn').style.display = 'block';
             openModal('profileModal');
         }
@@ -366,15 +304,14 @@
             const display_name = document.getElementById('displayNameInput').value.trim();
             const username = document.getElementById('usernameInput').value.trim();
             const bio = document.getElementById('bioInput').value.trim();
-            const privacy_setting = document.getElementById('privacySelect').value;
 
             if (!display_name || !username) { alert('نام نمایشی و نام کاربری الزامی است!'); return; }
 
             try {
-                const res = await fetch('/api/profile/update', {
+                const res = await fetch('/api/profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: myPhone, display_name, username, bio, privacy_setting, profile_pic_url: myProfile.profile_pic_url })
+                    body: JSON.stringify({ phone: myPhone, display_name, username, bio })
                 });
                 const data = await res.json();
                 if (!data.ok) { alert(data.error || 'خطا در ذخیره پروفایل'); return; }
@@ -390,13 +327,7 @@
             document.getElementById('myDisplayNameDisplay').innerText = myProfile.display_name || 'بدون نام';
             document.getElementById('myUsernameDisplay').innerText = '@' + (myProfile.username || 'username');
             document.getElementById('myBioDisplay').innerText = myProfile.bio || 'بیوگرافی ثبت نشده است.';
-            
-            const avatarContainer = document.getElementById('myAvatarContainer');
-            if (myProfile.profile_pic_url) {
-                avatarContainer.innerHTML = `<img src="${myProfile.profile_pic_url}" class="profile-avatar-large" id="myAvatarLarge">`;
-            } else {
-                avatarContainer.innerHTML = `<div class="profile-avatar-large" id="myAvatarLarge">${myProfile.display_name ? myProfile.display_name[0] : '🐰'}</div>`;
-            }
+            document.getElementById('myAvatarLarge').innerText = myProfile.display_name ? myProfile.display_name[0] : '🐰';
         }
 
         function enterApp() {
@@ -414,7 +345,6 @@
 
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                if (data.type === 'error') { alert(data.content); return; }
                 if (data.chat_id && data.chat_id !== currentChat) return;
                 if (!data.chat_id && currentChat !== 'public') return;
                 addMessage(data);
@@ -428,18 +358,19 @@
                 const list = document.getElementById('usersList');
                 list.innerHTML = '';
 
+                // گزینه چت عمومی در بالای لیست پی‌وی‌ها
                 const pub = document.createElement('div');
                 pub.className = 'user-row';
                 pub.innerHTML = `<div class="avatar-circle">🌐</div><div class="info"><b>چت عمومی</b><span>ارسال پیام همگانی</span></div>`;
-                pub.onclick = () => { switchChat('public', 'چت عمومی 🌐'); switchMobileView('chat'); };
+                pub.onclick = () => switchChat('public', 'چت عمومی 🌐');
                 list.appendChild(pub);
 
                 (data.users || []).forEach(u => {
                     const row = document.createElement('div');
                     row.className = 'user-row';
-                    const avatarContent = u.profile_pic_url ? `<img src="${u.profile_pic_url}" class="avatar-circle">` : `<div class="avatar-circle">${(u.display_name || '?')[0]}</div>`;
-                    row.innerHTML = `${avatarContent}<div class="info"><b>${u.display_name}</b><span>@${u.username || 'بدون نام'}</span></div>`;
-                    row.onclick = () => { switchChat(u.phone, u.display_name); switchMobileView('chat'); };
+                    row.innerHTML = `<div class="avatar-circle">${(u.display_name || '?')[0]}</div>
+                                     <div class="info"><b>${u.display_name}</b><span>@${u.username || 'بدون نام'}</span></div>`;
+                    row.onclick = () => switchChat(u.phone, u.display_name);
                     list.appendChild(row);
                 });
             } catch (e) { console.log(e); }
@@ -464,64 +395,16 @@
         function addMessage(data) {
             const list = document.getElementById('messagesList');
             const div = document.createElement('div');
-            div.setAttribute('data-id', data.id || '');
-            
             if (data.type === 'system') {
                 div.className = 'message system';
                 div.innerText = data.content;
             } else {
                 const isMine = (data.sender_phone === myPhone);
                 div.className = 'message ' + (isMine ? 'user' : 'other');
-                
-                let actionsHTML = '';
-                if (isMine && !data.is_deleted) {
-                    actionsHTML = `<div class="message-actions">
-                        <span onclick="editMessage('${data.id}')">✏️</span>
-                        <span onclick="deleteMessage('${data.id}')">🗑️</span>
-                    </div>`;
-                }
-
-                div.innerHTML = `${actionsHTML}<span class="sender">${data.user}</span><span class="msg-text">${data.content}</span> <small style="opacity:.6; font-size:10px;">${data.timestamp || ''}</small>`;
+                div.innerHTML = `<span class="sender">${data.user}</span>${data.content} <small style="opacity:.6; font-size:10px;">${data.timestamp || ''}</small>`;
             }
             list.appendChild(div);
             list.scrollTop = list.scrollHeight;
-        }
-
-        async function editMessage(msgId) {
-            const newContent = prompt("متن جدید پیام را وارد کنید:");
-            if (!newContent) return;
-
-            try {
-                const res = await fetch('/api/messages/action', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: myPhone, message_id: msgId, action: 'edit', new_content: newContent })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    location.reload(); // رفرش ساده برای به‌روزرسانی پیام‌ها
-                } else {
-                    alert(data.error);
-                }
-            } catch (e) { alert('خطا در ویرایش'); }
-        }
-
-        async function deleteMessage(msgId) {
-            if (!confirm("آیا مطمئن هستید که این پیام حذف شود؟")) return;
-
-            try {
-                const res = await fetch('/api/messages/action', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: myPhone, message_id: msgId, action: 'delete' })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                    location.reload();
-                } else {
-                    alert(data.error);
-                }
-            } catch (e) { alert('خطا در حذف'); }
         }
 
         function sendMessage() {
