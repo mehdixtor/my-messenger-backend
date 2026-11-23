@@ -60,31 +60,35 @@ async def get_status():
     }
 
 # ---------- ورود و مدیریت کد OTP (امن شده) ----------
+# ---------- ورود و مدیریت کد OTP (امن شده) ----------
 @app.post("/api/login")
 async def api_login(req: PhoneReq):
-    phone = req.phone.strip()
-    res = supabase.table("users").select("*").eq("phone", phone).execute()
+    try:
+        phone = req.phone.strip()
+        res = supabase.table("users").select("*").eq("phone", phone).execute()
 
-    if res.data:
+        if res.data:
+            return {
+                "is_new": False, 
+                "message": "کد مربوط به این شماره را وارد کنید."
+            }
+
+        code = gen_code()
+        supabase.table("users").insert({
+            "phone": phone, 
+            "code": code,
+            "display_name": phone,
+            "username": "user_" + phone[-4:]
+        }).execute()
+        
         return {
-            "is_new": False, 
-            "message": "کد مربوط به این شماره را وارد کنید."
+            "is_new": True, 
+            "code": code,
+            "message": "کد تایید برای شماره جدید صادر شد."
         }
-
-    code = gen_code()
-    # ارسال مقدار اولیه برای username تا با خطای دیتابیس مواجه نشویم
-    supabase.table("users").insert({
-        "phone": phone, 
-        "code": code,
-        "display_name": phone,
-        "username": "user_" + phone[-4:] # مقدار موقت برای جلوگیری از ارور دیتابیس
-    }).execute()
-    
-    return {
-        "is_new": True, 
-        "code": code,
-        "message": "کد تایید برای شماره جدید صادر شد."
-    }
+    except Exception as e:
+        print(f"LOGIN ERROR: {str(e)}")
+        return {"error": f"خطای سرور: {str(e)}"}
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
