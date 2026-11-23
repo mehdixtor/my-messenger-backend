@@ -141,7 +141,6 @@
         <div class="rabbit-deco left">🐰</div>
         <div class="rabbit-deco right">🐰</div>
         <h2>به پیام‌رسان 🐰 Pink Rabbit 🐰 خوش اومدی</h2>
-        <!-- غیرفعال‌سازی اتوفیل و پیشنهادات مرورگر و کیبورد -->
         <input type="text" id="phoneInput" placeholder="شماره موبایل (مثلاً 09123456789)" maxlength="11"
                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="no-autofill-phone">
         <button onclick="requestLogin()">ورود / ثبت‌نام</button>
@@ -211,7 +210,6 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        /* ---------- ۱. درخواست ورود ---------- */
         async function requestLogin() {
             const phone = document.getElementById('phoneInput').value.trim();
             if (!/^09\d{9}$/.test(phone)) {
@@ -227,11 +225,9 @@
                     body: JSON.stringify({ phone: phone })
                 });
                 const data = await res.json();
-
                 if (data.error) { alert(data.error); return; }
 
                 const codeBox = document.getElementById('codeBox');
-
                 if (data.is_new) {
                     codeBox.innerText = data.code;
                     codeBox.style.display = 'block';
@@ -248,7 +244,6 @@
             }
         }
 
-        /* ---------- ۲. تأیید کد ---------- */
         async function submitCode() {
             const code = document.getElementById('codeInput').value.trim();
             if (!code) { alert('کد را وارد کنید!'); return; }
@@ -260,12 +255,12 @@
                     body: JSON.stringify({ phone: myPhone, code: code })
                 });
                 const data = await res.json();
-
                 if (!data.ok) { alert(data.error || 'کد اشتباه است!'); return; }
 
                 closeModal('codeModal');
                 myProfile = data.user || {};
 
+                // اگر نام نمایشی یا نام کاربری نداشت، حتماً مودال پروفایل باز شود
                 if (!myProfile.display_name || !myProfile.username) {
                     openModal('profileModal');
                 } else {
@@ -276,7 +271,6 @@
             }
         }
 
-        /* ---------- ۳. ذخیره پروفایل ---------- */
         async function saveProfile() {
             const display_name = document.getElementById('displayNameInput').value.trim();
             const username = document.getElementById('usernameInput').value.trim();
@@ -301,7 +295,6 @@
             }
         }
 
-        /* ---------- ۴. ورود به چت ---------- */
         function enterChat() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('chatScreen').style.display = 'flex';
@@ -313,11 +306,9 @@
 
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-
                 if (data.type === 'chat' && data.chat_id && data.chat_id !== currentChat) return;
                 if (data.type === 'chat' && !data.chat_id && currentChat !== 'public') return;
                 if (data.type === 'system' && currentChat !== 'public') return;
-
                 addMessage(data);
             };
 
@@ -326,11 +317,9 @@
             };
         }
 
-        /* ---------- ۵. نمایش پیام ---------- */
         function addMessage(data) {
             const list = document.getElementById('messagesList');
             const div = document.createElement('div');
-
             if (data.type === 'system') {
                 div.className = 'message system';
                 div.innerText = data.content + (data.timestamp ? ` (${data.timestamp})` : '');
@@ -343,20 +332,17 @@
             list.scrollTop = list.scrollHeight;
         }
 
-        /* ---------- ۶. ارسال پیام ---------- */
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if (!text) return;
             if (!ws || ws.readyState !== WebSocket.OPEN) { alert('ارتباط برقرار نیست!'); return; }
-
             ws.send(JSON.stringify({ content: text, chat_id: currentChat }));
             input.value = '';
         }
 
         function checkEnter(e) { if (e.key === 'Enter') sendMessage(); }
 
-        /* ---------- ۷. لیست کاربران برای پی‌وی ---------- */
         async function openUsersList() {
             try {
                 const res = await fetch('/api/users?me=' + myPhone);
