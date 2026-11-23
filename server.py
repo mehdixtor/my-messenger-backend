@@ -61,6 +61,7 @@ async def get_status():
 
 # ---------- ورود و مدیریت کد OTP (امن شده) ----------
 # ---------- ورود و مدیریت کد OTP (امن شده) ----------
+# ---------- ورود و مدیریت کد OTP (امن شده) ----------
 @app.post("/api/login")
 async def api_login(req: PhoneReq):
     try:
@@ -74,11 +75,11 @@ async def api_login(req: PhoneReq):
             }
 
         code = gen_code()
-        supabase.table("users").insert({
+        # فقط فیلدهای پایه و قطعی را درج می‌کنیم تا خطای ستون نگیریم
+        insert_res = supabase.table("users").insert({
             "phone": phone, 
             "code": code,
-            "display_name": phone,
-            "username": "user_" + phone[-4:]
+            "display_name": phone
         }).execute()
         
         return {
@@ -87,8 +88,10 @@ async def api_login(req: PhoneReq):
             "message": "کد تایید برای شماره جدید صادر شد."
         }
     except Exception as e:
-        print(f"LOGIN ERROR: {str(e)}")
-        return {"error": f"خطای سرور: {str(e)}"}
+        # چاپ خطای کامل در کنسول رندر و ارسال جزئیات به کلاینت
+        err_msg = getattr(e, "message", str(e))
+        print(f"LOGIN ERROR FULL: {repr(e)}")
+        return {"error": f"خطای دیتابیس: {err_msg}"}
 
 @app.post("/api/verify")
 async def api_verify(req: VerifyReq):
