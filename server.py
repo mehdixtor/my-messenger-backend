@@ -1,36 +1,34 @@
 import os
-import datetime
-from zoneinfo import ZoneInfo
 import random
-import string
-import json
-from typing import List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
 
-# تنظیم منطقه زمانی ایران
-IRAN_TZ = ZoneInfo("Asia/Tehran")
+app = FastAPI(title="Pink Rabbit Messenger", version="2.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "YOUR_SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL != "YOUR_SUPABASE_URL" else None
+
+OWNERS = ["09904590545", "09029016512", "09193104357", "09027699911"]
+
+active_connections: dict = {} # phone -> WebSocket
+online_users: dict = {} # phone -> datetime
 
 def get_iran_time():
-    return datetime.datetime.now(IRAN_TZ)
-
-# تنظیمات Supabase از Environment Variables (Render)
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    # برای تست لوکال اگر متغیرها ست نشده باشند، خطای واضح می‌دهد
-    print("ERROR: SUPABASE_URL یا SUPABASE_KEY در محیط یافت نشد!")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-app = FastAPI()
-
-# مدیریت اتصال‌های فعال
-active_connections: List[WebSocket] = []
-online_map = {}  # phone -> display_name
+    return datetime.now(ZoneInfo("Asia/Tehran"))
 
 class PhoneReq(BaseModel):
     phone: str
@@ -41,219 +39,296 @@ class VerifyReq(BaseModel):
 
 class ProfileReq(BaseModel):
     phone: str
-    display_name: str
-    username: str
-    bio: str = ""
+    display_name: str = None
+    username: str = None
+    bio: str = None
+    avatar: str = None
+    privacy: str = "everyone" # everyone / nobody
 
-def gen_code():
-    return "".join(random.choices(string.digits, k=6))
+class BanReq(BaseModel):
+    admin_phone: str
+    target_phone: str
+    minutes: int # 0 for permanent or minutes count
 
-@app.get("/")
-async def read_index():
-    return FileResponse("index.html")
+@app.get("/", response_class=HTMLResponse)
+def get_index():
+    if os.path.exists("index.html"):
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h3>index.html not found</h3>"
 
-@app.get("/status")
-async def get_status():
-    return {
-        "status": "Online", 
-        "online_users": len(active_connections),
-        "server_time": get_iran_time().isoformat()
-    }
-
-# ---------- ورود و مدیریت کد OTP ----------
 @app.post("/api/login")
-async def api_login(req: PhoneReq):
+def login(req: PhoneReq):
     phone = req.phone.strip()
-    try:
+    if not phone:
+        raise HTTPException(status_code=400, detail="شماره تلفن الزامی است")
+    
+    code = str(random.randint(100000, 999999))
+    
+    if supabase:
         res = supabase.table("users").select("*").eq("phone", phone).execute()
-
-        if res.data:
-            return {
-                "is_new": False, 
-                "message": "کد تایید برای شماره شما ارسال شد."
-            }
-
-        code = gen_code()
-        supabase.table("users").insert({
-            "phone": phone, 
-            "code": code,
-            "display_name": phone,
-            "username": f"user_{phone.replace('+', '')[-4:]}" # نام کاربری موقت
-        }).execute()
-        
-        return {
-            "is_new": True, 
-            "code": code,
-            "message": "کد تایید برای شماره جدید صادر شد."
-        }
-    except Exception as e:
-        return {"is_new": False, "error": str(e)}
+        if res.data and len(res.data) > 0:
+            # Existing account: update code, DO NOT return code to client
+            supabase.table("users").update({"code": code}).eq("phone", phone).execute()
+            return {"status": "existing", "message": "کد تأیید برای حساب موجود ارسال شد"}
+        else:
+            # New account: create user and return code
+            supabase.table("users").insert({
+                "phone": phone,
+                "code": code,
+                "display_name": phone,
+                "username": f"user_{phone[-4:]}",
+                "bio": "سلام از پینک ربیت!",
+                "avatar": "",
+                "privacy": "everyone"
+            }).execute()
+            return {"status": "new", "code": code, "message": "حساب جدید ساخته شد"}
+    return {"status": "new", "code": code}
 
 @app.post("/api/verify")
-async def api_verify(req: VerifyReq):
-    try:
-        res = supabase.table("users").select("*").eq("phone", req.phone.strip()).execute()
-        if not res.data:
-            return {"ok": False, "error": "کاربر پیدا نشد"}
-        
+def verify(req: VerifyReq):
+    phone = req.phone.strip()
+    code = req.code.strip()
+    if not supabase:
+        return {"success": True}
+    
+    res = supabase.table("users").select("*").eq("phone", phone).eq("code", code).execute()
+    if res.data and len(res.data) > 0:
         user = res.data[0]
-        if str(user["code"]) != req.code.strip():
-            return {"ok": False, "error": "کد اشتباه است"}
+        # Check ban status
+        banned_until = user.get("banned_until")
+        is_banned = False
+        if banned_until:
+            ban_time = datetime.fromisoformat(banned_until)
+            if ban_time > get_iran_time():
+                is_banned = True
+            else:
+                supabase.table("users").update({"banned_until": None}).eq("phone", phone).execute()
         
-        return {"ok": True, "user": user}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
+        is_owner = phone in OWNERS
+        return {
+            "success": True, 
+            "is_owner": is_owner, 
+            "is_banned": is_banned,
+            "banned_until": banned_until,
+            "user": user
+        }
+    raise HTTPException(status_code=400, detail="کد تأیید نادرست است")
 
-# ---------- مدیریت پروفایل ----------
-@app.post("/api/profile")
-async def api_profile(req: ProfileReq):
-    try:
-        # چک کردن تکراری نبودن نام کاربری
-        dup = supabase.table("users").select("phone").eq("username", req.username.strip()).execute()
-        if dup.data and dup.data[0]["phone"] != req.phone:
-            return {"ok": False, "error": "این نام کاربری قبلاً گرفته شده"}
-
-        supabase.table("users").update({
-            "display_name": req.display_name.strip(),
-            "username": req.username.strip(),
-            "bio": req.bio.strip()
-        }).eq("phone", req.phone).execute()
-
-        res = supabase.table("users").select("*").eq("phone", req.phone).execute()
-        return {"ok": True, "user": res.data[0]}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-# ---------- دریافت لیست کاربران ----------
-@app.get("/api/users")
-async def api_users(me: str = ""):
-    try:
-        res = supabase.table("users").select("phone,display_name,username,bio").execute()
-        # فیلتر کردن کاربر جاری و کسانی که نام نمایش ندارند
-        users = [u for u in res.data if u["phone"] != me and u.get("display_name")]
-        return {"users": users}
-    except Exception as e:
-        return {"users": [], "error": str(e)}
-
-# ---------- دریافت تاریخچه پیام‌ها ----------
-@app.get("/api/history")
-async def api_history(chat_id: str = "public", me: str = ""):
-    try:
-        q = supabase.table("messages").select("*")
+@app.get("/api/users/{phone}")
+def get_users(phone: str):
+    if not supabase:
+        return []
+    
+    caller_res = supabase.table("users").select("*").eq("phone", phone).execute()
+    if not caller_res.data:
+        raise HTTPException(status_code=404, detail="کاربر یافت نشد")
+    
+    caller = caller_res.data[0]
+    caller_is_owner = phone in OWNERS
+    caller_privacy = caller.get("privacy", "everyone")
+    
+    users_res = supabase.table("users").select("*").execute()
+    all_users = users_res.data or []
+    
+    result = []
+    now = get_iran_time()
+    
+    for u in all_users:
+        u_phone = u["phone"]
+        u_is_owner = u_phone in OWNERS
+        u_privacy = u.get("privacy", "everyone")
         
-        if chat_id == "public":
-            # پیام‌های عمومی (که گیرنده ندارند)
-            q = q.is_("receiver_phone", "null")
+        # Last seen calculation & privacy rules
+        last_seen_str = "آفلاین"
+        if u_phone in online_users:
+            last_seen_str = "آنلاین"
         else:
-            # پیام‌های مستقیم (PV)
-            q = q.or_(f"and(sender_phone.eq.{me},receiver_phone.eq.{chat_id}),"
-                      f"and(sender_phone.eq.{chat_id},receiver_phone.eq.{me})")
-        
-        res = q.order("created_at", desc=False).execute()
-        
-        out = []
-        for m in res.data:
-            # تبدیل زمان UTC دیتابیس به ساعت ایران
-            dt_str = m.get("created_at") or ""
-            time_part = ""
-            if dt_str:
-                try:
-                    # هندل کردن فرمت Z یا آفست‌های مختلف
-                    dt_clean = dt_str.replace("Z", "+00:00")
-                    utc_dt = datetime.datetime.fromisoformat(dt_clean)
-                    iran_dt = utc_dt.astimezone(IRAN_TZ)
-                    time_part = iran_dt.strftime("%H:%M")
-                except:
-                    time_part = dt_str[11:16]
+            db_last = u.get("last_seen")
+            if db_last:
+                dt = datetime.fromisoformat(db_last)
+                diff_min = int((now - dt).total_seconds() / 60)
+                
+                # Privacy rules enforcement
+                show_seen = True
+                if caller_is_owner:
+                    show_seen = True # Owners always see everyone's last seen
+                else:
+                    if caller_privacy == "nobody" or u_privacy == "nobody":
+                        show_seen = False
+                
+                if show_seen:
+                    if diff_min < 2:
+                        last_seen_str = "به تازگی"
+                    elif diff_min < 60:
+                        last_seen_str = f"در ظرف یک ساعت ({dt.strftime('%H:%M')})"
+                    elif diff_min < 1440:
+                        last_seen_str = f"آخرین بازدید {dt.strftime('%H:%M')}"
+                    elif diff_min < 10080:
+                        last_seen_str = "در ظرف یک هفته"
+                    elif diff_min < 43200:
+                        last_seen_str = "در ظرف یک ماه"
+                    else:
+                        last_seen_str = "خیلی وقت پیش"
+                else:
+                    last_seen_str = "پنهان"
 
-            out.append({
-                "type": "chat",
-                "user": m["sender_name"],
-                "sender_phone": m["sender_phone"],
-                "content": m["content"],
-                "timestamp": time_part,
-                "chat_id": m.get("receiver_phone") or "public"
-            })
-        return {"messages": out}
-    except Exception as e:
-        return {"messages": [], "error": str(e)}
+        result.append({
+            "phone": u_phone,
+            "display_name": u.get("display_name"),
+            "username": u.get("username"),
+            "bio": u.get("bio"),
+            "avatar": u.get("avatar"),
+            "privacy": u_privacy,
+            "is_owner": u_is_owner,
+            "banned_until": u.get("banned_until"),
+            "last_seen_text": last_seen_str,
+            "is_online": u_phone in online_users
+        })
+    return result
 
-# ---------- وب‌سوکت (Real-time) ----------
+@app.post("/api/profile/update")
+def update_profile(req: ProfileReq):
+    if not supabase:
+        return {"success": True}
+    
+    update_data = {}
+    if req.display_name is not None: update_data["display_name"] = req.display_name
+    if req.username is not None: update_data["username"] = req.username
+    if req.bio is not None: update_data["bio"] = req.bio
+    if req.avatar is not None: update_data["avatar"] = req.avatar
+    if req.privacy is not None: update_data["privacy"] = req.privacy
+    
+    supabase.table("users").update(update_data).eq("phone", req.phone).execute()
+    return {"success": True}
+
+@app.post("/api/admin/ban")
+def ban_user(req: BanReq):
+    if req.admin_phone not in OWNERS:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+    
+    if req.target_phone in OWNERS:
+        raise HTTPException(status_code=400, detail="نمی‌توانید مدیران دیگر را مسدود کنید")
+    
+    banned_until_val = None
+    if req.minutes > 0:
+        banned_until_val = (get_iran_time() + timedelta(minutes=req.minutes)).isoformat()
+    else:
+        # Permanent ban (100 years)
+        banned_until_val = (get_iran_time() + timedelta(days=36500)).isoformat()
+        
+    if supabase:
+        supabase.table("users").update({"banned_until": banned_until_val}).eq("phone", req.target_phone).execute()
+        # If user is online, send kick command via WS
+        if req.target_phone in active_connections:
+            # We can handle disconnect or notify via WS
+            pass
+            
+    return {"success": True, "banned_until": banned_until_val}
+
+@app.post("/api/admin/unban")
+def unban_user(req: BanReq):
+    if req.admin_phone not in OWNERS:
+        raise HTTPException(status_code=403, detail="دسترسی غیرمجاز")
+    if supabase:
+        supabase.table("users").update({"banned_until": None}).eq("phone", req.target_phone).execute()
+    return {"success": True}
+
+@app.get("/api/messages/{phone1}/{phone2}")
+def get_history(phone1: str, phone2: str):
+    if not supabase:
+        return []
+    # Fetch public (receiver is null) or private between phone1 & phone2
+    res = supabase.table("messages").select("*").or_(
+        f"and(receiver_phone.is.null),and(sender_phone.eq.{phone1},receiver_phone.eq.{phone2}),and(sender_phone.eq.{phone2},receiver_phone.eq.{phone1})"
+    ).order("created_at").execute()
+    return res.data or []
+
 @app.websocket("/ws/{phone}")
 async def websocket_endpoint(websocket: WebSocket, phone: str):
     await websocket.accept()
-    active_connections.append(websocket)
+    
+    # Verify ban before allowing WS
+    if supabase:
+        res = supabase.table("users").select("banned_until").eq("phone", phone).execute()
+        if res.data and res.data[0].get("banned_until"):
+            dt = datetime.fromisoformat(res.data[0]["banned_until"])
+            if dt > get_iran_time():
+                await websocket.send_json({"type": "banned", "banned_until": res.data[0]["banned_until"]})
+                await websocket.close()
+                return
 
-    # دریافت نام نمایش برای اطلاع‌رسانی ورود
-    res = supabase.table("users").select("display_name").eq("phone", phone).execute()
-    display_name = res.data[0].get("display_name") if res.data else phone
-    online_map[phone] = display_name
-
-    # اطلاع‌رسانی ورود کاربر به بقیه
-    join_event = {
-        "type": "system", 
-        "content": f"⚠️ {display_name} وارد چت شد",
-        "timestamp": get_iran_time().strftime("%H:%M")
-    }
-    for c in active_connections:
-        try:
-            await c.send_json(join_event)
-        except:
-            pass
-
+    active_connections[phone] = websocket
+    online_users[phone] = get_iran_time()
+    
     try:
         while True:
-            raw_data = await websocket.receive_text()
-            data = json.loads(raw_data)
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
             
-            content = data.get("content", "")
-            chat_id = data.get("chat_id", "public")
-            receiver_phone = None if chat_id == "public" else chat_id
-
-            # ذخیره در دیتابیس
-            supabase.table("messages").insert({
-                "sender_phone": phone,
-                "sender_name": display_name,
-                "content": content,
-                "receiver_phone": receiver_phone
-            }).execute()
-
-            # ارسال پیام به همه (بر اساس ساختار UI جدید که همه پیام‌ها را دریافت می‌کنند و کلاینت فیلتر می‌کند)
-            msg_payload = {
-                "type": "chat",
-                "user": display_name,
-                "sender_phone": phone,
-                "content": content,
-                "timestamp": get_iran_time().strftime("%H:%M"),
-                "chat_id": chat_id
-            }
-
-            for connection in active_connections:
-                try:
-                    await connection.send_json(msg_payload)
-                except:
-                    pass
+            if msg_type == "chat":
+                content = data.get("content")
+                receiver = data.get("receiver_phone") # null for public
+                sender_name = data.get("sender_name", phone)
+                
+                msg_row = {
+                    "sender_phone": phone,
+                    "sender_name": sender_name,
+                    "content": content,
+                    "receiver_phone": receiver,
+                    "created_at": get_iran_time().isoformat(),
+                    "is_edited": False,
+                    "deleted_for_everyone": False,
+                    "seen": False
+                }
+                
+                if supabase:
+                    res = supabase.table("messages").insert(msg_row).execute()
+                    if res.data:
+                        msg_row = res.data[0]
+                
+                # Broadcast to receiver and sender
+                payload = {"type": "chat", "message": msg_row}
+                if receiver:
+                    if receiver in active_connections:
+                        await active_connections[receiver].send_json(payload)
+                    await websocket.send_json(payload)
+                else:
+                    # Public broadcast to all
+                    for p, conn in active_connections.items():
+                        await conn.send_json(payload)
+                        
+            elif msg_type == "edit":
+                msg_id = data.get("id")
+                new_content = data.get("content")
+                if supabase and msg_id:
+                    supabase.table("messages").update({"content": new_content, "is_edited": True}).eq("id", msg_id).eq("sender_phone", phone).execute()
+                payload = {"type": "edit", "id": msg_id, "content": new_content}
+                # Broadcast
+                for p, conn in active_connections.items():
+                    await conn.send_json(payload)
+                    
+            elif msg_type == "delete":
+                msg_id = data.get("id")
+                mode = data.get("mode", "everyone") # everyone or self
+                if supabase and msg_id and mode == "everyone":
+                    supabase.table("messages").update({"deleted_for_everyone": True, "content": "این پیام حذف شده است"}).eq("id", msg_id).eq("sender_phone", phone).execute()
+                payload = {"type": "delete", "id": msg_id, "mode": mode, "sender_phone": phone}
+                for p, conn in active_connections.items():
+                    await conn.send_json(payload)
+                    
+            elif msg_type == "seen":
+                other_phone = data.get("other_phone")
+                if supabase and other_phone:
+                    supabase.table("messages").update({"seen": True}).eq("sender_phone", other_phone).eq("receiver_phone", phone).execute()
+                payload = {"type": "seen", "by_phone": phone}
+                if other_phone in active_connections:
+                    await active_connections[other_phone].send_json(payload)
 
     except WebSocketDisconnect:
-        if websocket in active_connections:
-            active_connections.remove(websocket)
-        online_map.pop(phone, None)
-        
-        leave_event = {
-            "type": "system", 
-            "content": f"❌ {display_name} از چت خارج شد",
-            "timestamp": get_iran_time().strftime("%H:%M")
-        }
-        for c in active_connections:
-            try:
-                await c.send_json(leave_event)
-            except:
-                pass
-    except Exception as e:
-        print(f"WebSocket Error: {e}")
-        if websocket in active_connections:
-            active_connections.remove(websocket)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000)
+        if phone in active_connections:
+            del active_connections[phone]
+        if phone in online_users:
+            del online_users[phone]
+        if supabase:
+            supabase.table("users").update({"last_seen": get_iran_time().isoformat()}).eq("phone", phone).execute()

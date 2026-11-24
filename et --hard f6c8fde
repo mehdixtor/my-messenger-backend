@@ -1,0 +1,28 @@
+[33ma50c5f7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: restore last working version
+[33maf647d2[m fix: login verification and typing issue
+[33m9c0349b[m Update Pink Rabbit: UI, profile, and privacy settings
+[33m48eed35[m update all files
+[33m2cd6464[m Update server and frontend code for perfect profile flow
+[33m6723d12[m Disable autofill and suggestions completely on all inputs
+[33m9c2b8f3[m Rollback to stable version f6c8fde
+[33med2cce4[m Fix timezone to Iran time (Asia/Tehran)
+[33mda84f01[m Simplify insert fields in login to prevent column mismatch
+[33m9730d75[m Catch and return detailed login exception for debugging
+[33me5866d5[m Fix database insertion by adding temporary default username
+[33meb08dfe[m Disable autofill and keyboard suggestions on inputs
+[33mf6c8fde[m Fix timezone to Iran time (Asia/Tehran)
+[33m7c22d0a[m Optimize and update index.html
+[33m531e1b6[m fix: integrate supabase and private messaging
+[33m7eef522[m Add supabase dependency and logic
+[33me4a1872[m fix favicon
+[33ma935a5a[m add blinking rabbits and improve login UI
+[33md0871c6[m fix favicon
+[33mb161bae[m fix favicon
+[33me74b001[m fix favicon
+[33mc1dcec0[m Fix: Add standard uvicorn dependencies for websockets
+[33m9d4ad0d[m Fix: Dynamic WebSocket URL for Render deployment
+[33m3d86194[m Fix indentation
+[33m7c46a39[m Enable serving index.html
+[33m3a0e16b[m Enable serving index.html
+[33mdd77893[m Add Procfile for deployment
+[33m870536d[m First commit: backend files

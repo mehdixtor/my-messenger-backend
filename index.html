@@ -3,420 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pink Rabbit 🐰</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐰</text></svg>">
+    <title>Pink Rabbit 🐰 Messenger</title>
     <style>
-        :root {
-            --pink-main: #ff69b4;
-            --pink-light: #ffb6c1;
-            --pink-dark: #ff1493;
-            --bg-color: #fff0f5;
-            --sidebar-bg: #ffffff;
-            --chat-bg: #fff5f8;
-        }
-        * { box-sizing: border-box; }
-        body {
-            font-family: Tahoma, sans-serif;
-            background: var(--bg-color);
-            margin: 0; padding: 0;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; overflow: hidden;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
+        body { background: #121212; color: #e0e0e0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .app-container { width: 100%; max-width: 1200px; height: 100vh; background: #1e1e1e; display: flex; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        
+        /* Auth Screen */
+        #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-box { background: #252525; padding: 30px; border-radius: 12px; width: 350px; text-align: center; border: 1px solid #333; }
+        .auth-box h2 { color: #ff69b4; margin-bottom: 20px; }
+        .auth-box input { width: 100%; padding: 12px; margin-bottom: 15px; background: #1e1e1e; border: 1px solid #444; color: #fff; border-radius: 8px; font-size: 16px; text-align: center; }
+        .auth-box button { width: 100%; padding: 12px; background: #ff69b4; border: none; color: #fff; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .auth-box button:hover { background: #ff1493; }
 
-        /* ---------- صفحه ورود ---------- */
-        .login-screen {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; height: 100%; position: relative; z-index: 10;
-        }
-        .login-screen h2 { color: var(--pink-main); text-align: center; margin-bottom: 20px; font-size: 20px; }
-        .login-screen input {
-            padding: 12px; width: 260px; border: 2px solid var(--pink-light);
-            border-radius: 8px; outline: none; font-size: 16px; text-align: center;
-            font-family: inherit;
-        }
-        .login-screen button {
-            padding: 12px 24px; background: var(--pink-main); color: white;
-            border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
-            margin-top: 15px; transition: 0.3s; font-family: inherit; font-size: 15px;
-        }
-        .login-screen button:hover { background: var(--pink-dark); }
-        .rabbit-deco { position: absolute; font-size: 60px; user-select: none; animation: blink 2s infinite; z-index: 0; }
-        .rabbit-deco.left { left: 20px; bottom: 150px; }
-        .rabbit-deco.right { right: 20px; bottom: 150px; }
-        @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+        /* Sidebar & Chat Layout */
+        .sidebar { width: 320px; background: #181818; border-left: 1px solid #333; display: flex; flex-direction: column; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #1e1e1e; position: relative; }
+        
+        .profile-header { padding: 15px; background: #222; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #333; }
+        .avatar { width: 45px; height: 45px; border-radius: 50%; background: #ff69b4; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #fff; overflow: hidden; font-size: 18px; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .user-list { flex: 1; overflow-y: auto; }
+        .user-item { padding: 12px 15px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a2a2a; cursor: pointer; transition: background 0.2s; }
+        .user-item:hover, .user-item.active { background: #2a2a2a; }
+        .user-info { flex: 1; }
+        .user-name { font-weight: bold; font-size: 14px; color: #fff; }
+        .user-status { font-size: 12px; color: #888; margin-top: 3px; }
 
-        /* ---------- چیدمان اصلی (سه ستون) ---------- */
-        .app-container {
-            display: none; width: 100%; max-width: 1100px; height: 92vh;
-            background: white; border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(255,105,180,0.2);
-            overflow: hidden; border: 2px solid var(--pink-light);
+        .chat-header { padding: 15px; background: #222; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .messages-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #1a1a1a; }
+        
+        .message { max-width: 65%; padding: 10px 14px; border-radius: 10px; position: relative; font-size: 14px; word-break: break-word; line-height: 1.4; }
+        .message.sent { background: #005c4b; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .message.received { background: #202c33; color: #fff; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .msg-time { font-size: 10px; color: rgba(255,255,255,0.6); float: left; margin-top: 5px; margin-right: 8px; }
+        .msg-ticks { font-size: 11px; float: left; margin-left: 3px; color: #53bdeb; }
+        
+        .chat-input-box { padding: 15px; background: #222; display: flex; gap: 10px; align-items: center; border-top: 1px solid #333; }
+        .chat-input-box input { flex: 1; padding: 12px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 8px; outline: none; }
+        .chat-input-box button { padding: 10px 20px; background: #ff69b4; border: none; color: #fff; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
+        /* Modals & Profile Editor */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 500; display: none; }
+        .modal-content { background: #252525; padding: 25px; border-radius: 12px; width: 400px; border: 1px solid #444; }
+        .modal-content input, .modal-content textarea, .modal-content select { width: 100%; padding: 10px; margin-bottom: 12px; background: #1e1e1e; border: 1px solid #555; color: #fff; border-radius: 6px; }
+        
+        @media(max-width: 768px) {
+            .app-container { flex-direction: column; }
+            .sidebar { width: 100%; height: 100%; }
+            .chat-area { display: none; width: 100%; height: 100%; }
+            .mobile-back { display: inline-block !important; }
         }
-        .main-layout { display: flex; width: 100%; height: 100%; }
-
-        /* ستون سمت چپ: پروفایل */
-        .sidebar-left {
-            width: 260px; background: var(--sidebar-bg);
-            border-left: 1px solid #ffc0cb;
-            display: flex; flex-direction: column;
-            align-items: center; padding: 20px 15px; text-align: center;
-        }
-        .profile-avatar-large {
-            width: 75px; height: 75px; border-radius: 50%;
-            background: var(--pink-light); color: white;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 36px; margin: 0 auto 12px;
-            border: 2px solid var(--pink-main);
-        }
-        .profile-name { font-weight: bold; color: var(--pink-dark); font-size: 16px; margin-bottom: 4px; }
-        .profile-username { color: #888; font-size: 12px; margin-bottom: 12px; }
-        .profile-bio { font-size: 12px; color: #555; margin-bottom: 20px; line-height: 1.5; background: #fff5f8; padding: 8px; border-radius: 8px; width: 100%; word-break: break-word; }
-        .edit-profile-btn {
-            padding: 8px 15px; border: 1px solid var(--pink-main);
-            color: var(--pink-main); background: none; border-radius: 20px;
-            font-size: 12px; cursor: pointer; font-family: inherit; font-weight: bold;
-            width: 100%; transition: 0.2s;
-        }
-        .edit-profile-btn:hover { background: var(--pink-main); color: white; }
-
-        /* ستون وسط: چت عمومی (دست‌نخورده) */
-        .chat-center {
-            flex: 1; display: flex; flex-direction: column;
-            background: var(--chat-bg); border-left: 1px solid #ffc0cb;
-        }
-        .chat-header {
-            background: var(--pink-main); color: white; padding: 12px 15px;
-            display: flex; align-items: center; justify-content: space-between;
-            font-weight: bold; font-size: 15px;
-        }
-        .chat-messages {
-            flex: 1; padding: 15px; overflow-y: auto;
-            display: flex; flex-direction: column; gap: 10px;
-        }
-        .message { padding: 9px 13px; border-radius: 12px; max-width: 80%; font-size: 14px; word-break: break-word; }
-        .message .sender { font-size: 11px; font-weight: bold; display: block; margin-bottom: 3px; }
-        .message.system { background: #ffe4e1; color: #d87093; align-self: center; font-size: 12px; border-radius: 20px; }
-        .message.user { background: var(--pink-main); color: white; align-self: flex-end; }
-        .message.other { background: white; color: #333; align-self: flex-start; border: 1px solid #ffc0cb; }
-
-        .chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #ffc0cb; }
-        .chat-input input {
-            flex: 1; padding: 10px; border: 1px solid var(--pink-light);
-            border-radius: 8px; outline: none; font-size: 14px; font-family: inherit;
-        }
-        .chat-input button {
-            background: var(--pink-main); color: white; border: none;
-            padding: 10px 18px; margin-right: 8px; border-radius: 8px;
-            cursor: pointer; font-weight: bold; font-family: inherit;
-        }
-
-        /* ستون سمت راست: پی‌وی‌ها */
-        .sidebar-right {
-            width: 270px; background: white;
-            display: flex; flex-direction: column;
-        }
-        .sidebar-right-header {
-            padding: 14px; font-weight: bold; color: var(--pink-dark);
-            border-bottom: 1px solid #ffe4e1; font-size: 14px; text-align: center;
-            background: #fff9fb;
-        }
-        .users-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding: 8px; }
-        .user-row {
-            display: flex; align-items: center; gap: 10px; padding: 8px;
-            border-radius: 10px; cursor: pointer; transition: 0.2s; border: 1px solid transparent;
-        }
-        .user-row:hover { background: #fff5f8; border-color: #ffc0cb; }
-        .user-row .avatar-circle {
-            width: 35px; height: 35px; border-radius: 50%; background: #ffe4e1;
-            color: var(--pink-dark); display: flex; align-items: center; justify-content: center;
-            font-size: 15px; font-weight: bold; flex-shrink: 0;
-        }
-        .user-row .info { flex: 1; text-align: right; overflow: hidden; }
-        .user-row .info b { font-size: 13px; display: block; color: #333; }
-        .user-row .info span { font-size: 11px; color: #888; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* مودال‌ها */
-        .modal {
-            display: none; position: fixed; z-index: 100; left: 0; top: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.45);
-            justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background: white; padding: 22px; border-radius: 16px; width: 90%;
-            max-width: 320px; display: flex; flex-direction: column; gap: 10px;
-            border: 2px solid var(--pink-light);
-        }
-        .modal-content h3 { margin: 0 0 5px; text-align: center; color: var(--pink-main); }
-        .modal-content input, .modal-content textarea {
-            padding: 10px; border: 1px solid var(--pink-light); border-radius: 8px; outline: none; font-family: inherit; font-size: 14px; resize: none;
-        }
-        .modal-content button {
-            padding: 10px; background: var(--pink-main); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-family: inherit;
-        }
-        .code-box {
-            background: #fff5f8; border: 2px dashed var(--pink-main); border-radius: 10px;
-            padding: 14px; text-align: center; font-size: 26px; font-weight: bold;
-            letter-spacing: 4px; color: var(--pink-dark); direction: ltr;
-        }
+        .mobile-back { display: none; background: none; border: none; color: #ff69b4; font-size: 18px; cursor: pointer; margin-left: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- صفحه ورود -->
-    <div id="loginScreen" class="login-screen">
-        <div class="rabbit-deco left">🐰</div>
-        <div class="rabbit-deco right">🐰</div>
-        <h2>به پیام‌رسان 🐰 Pink Rabbit 🐰 خوش اومدی</h2>
-        <input type="text" id="phoneInput" placeholder="شماره موبایل (0912...)" maxlength="11" autocomplete="off">
-        <button onclick="requestLogin()">ورود / ثبت‌نام</button>
-    </div>
-
-    <!-- مودال کد تایید -->
-    <div id="codeModal" class="modal">
-        <div class="modal-content">
-            <h3 id="codeTitle">کد ورود</h3>
-            <p id="codeDesc" style="font-size:12px; color:#666; text-align:center; margin:0;"></p>
-            <div class="code-box" id="codeBox" style="display: none;">------</div>
-            <input type="text" id="codeInput" placeholder="کد را وارد کنید" style="text-align:center; direction:ltr; letter-spacing:3px;">
-            <button onclick="submitCode()">تأیید و ورود</button>
+    <!-- Auth Screen -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <h2>Pink Rabbit 🐰</h2>
+            <div id="step-phone">
+                <input type="text" id="phone-input" placeholder="شماره موبایل (مثلا 0912...)">
+                <button onclick="requestLogin()">ورود / ثبت‌نام</button>
+            </div>
+            <div id="step-code" style="display: none;">
+                <p id="code-msg" style="margin-bottom: 15px; font-size: 13px; color: #aaa;"></p>
+                <input type="text" id="code-input" placeholder="کد تأیید ۶ رقمی">
+                <button onclick="verifyCode()">تأیید و ورود</button>
+            </div>
         </div>
     </div>
 
-    <!-- مودال تکمیل / ویرایش پروفایل -->
-    <div id="profileModal" class="modal">
-        <div class="modal-content">
-            <h3 id="profileModalTitle">تنظیمات پروفایل 🐰</h3>
-            <input type="text" id="displayNameInput" placeholder="نام نمایشی">
-            <input type="text" id="usernameInput" placeholder="نام کاربری (مثلاً mehdi)">
-            <textarea id="bioInput" rows="3" placeholder="بیوگرافی..."></textarea>
-            <button onclick="saveProfile()">ذخیره تغییرات</button>
-            <button onclick="closeModal('profileModal')" style="background:#ccc; margin-top:-4px;" id="closeProfileBtn">انصراف</button>
+    <!-- Main App -->
+    <div class="app-container" id="main-app" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar-panel">
+            <div class="profile-header">
+                <div class="avatar" id="my-avatar" onclick="openProfileModal()" style="cursor: pointer;">🐰</div>
+                <div class="user-info">
+                    <div class="user-name" id="my-display-name">کاربر</div>
+                    <div class="user-status" id="my-phone-view">متصل</div>
+                </div>
+                <button onclick="openProfileModal()" style="background:none; border:none; color:#ff69b4; cursor:pointer; font-size:18px;">⚙️</button>
+            </div>
+            <div class="user-item" onclick="switchChat('public', 'چت عمومی اصلی')">
+                <div class="avatar" style="background: #333;">🌐</div>
+                <div class="user-info">
+                    <div class="user-name">چت عمومی پینک ربیت</div>
+                    <div class="user-status">همه کاربران</div>
+                </div>
+            </div>
+            <div class="user-list" id="users-list-container">
+                <!-- Dynamic users list -->
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area" id="chat-panel">
+            <div class="chat-header">
+                <div style="display: flex; align-items: center;">
+                    <button class="mobile-back" onclick="backToSidebar()">←</button>
+                    <div class="avatar" id="current-chat-avatar" style="width: 35px; height: 35px; margin-left: 10px;">🌐</div>
+                    <div>
+                        <div class="user-name" id="current-chat-title">چت عمومی</div>
+                        <div class="user-status" id="current-chat-status">آنلاین</div>
+                    </div>
+                </div>
+                <div id="admin-actions-box"></div>
+            </div>
+            <div class="messages-box" id="messages-box"></div>
+            <div class="chat-input-box">
+                <input type="text" id="message-input" placeholder="پیام خود را بنویسید..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">ارسال</button>
+            </div>
         </div>
     </div>
 
-    <!-- ساختار اصلی اپلیکیشن (سه ستون) -->
-    <div id="appContainer" class="app-container">
-        <div class="main-layout">
-            
-            <!-- ستون چپ: پروفایل کاربر -->
-            <div class="sidebar-left">
-                <div class="profile-avatar-large" id="myAvatarLarge">🐰</div>
-                <div class="profile-name" id="myDisplayNameDisplay">نام کاربر</div>
-                <div class="profile-username" id="myUsernameDisplay">@username</div>
-                <div class="profile-bio" id="myBioDisplay">بیوگرافی کاربر...</div>
-                <button class="edit-profile-btn" onclick="openEditProfile()">ویرایش پروفایل</button>
+    <!-- Profile Modal -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content">
+            <h3 style="color:#ff69b4; margin-bottom:15px;">تنظیمات پروفایل</h3>
+            <label>نام نمایشی:</label>
+            <input type="text" id="edit-display-name">
+            <label>نام کاربری (username):</label>
+            <input type="text" id="edit-username">
+            <label>بیوگرافی:</label>
+            <textarea id="edit-bio" rows="2"></textarea>
+            <label>لینک آواتار عکس پروفایل:</label>
+            <input type="text" id="edit-avatar" placeholder="آدرس مستقیم عکس یا گالری">
+            <label>حریم خصوصی آخرین بازدید:</label>
+            <select id="edit-privacy">
+                <option value="everyone">همه (Everyone)</option>
+                <option value="nobody">هیچ‌کس (Nobody)</option>
+            </select>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="saveProfile()" style="flex:1; background:#ff69b4; border:none; padding:10px; color:#fff; border-radius:6px; cursor:pointer;">ذخیره</button>
+                <button onclick="closeProfileModal()" style="flex:1; background:#444; border:none; padding:10px; color:#fff; border-radius:6px; cursor:pointer;">انصراف</button>
             </div>
+        </div>
+    </div>
 
-            <!-- ستون وسط: چت (عمومی یا پی‌وی) -->
-            <div class="chat-center">
-                <div class="chat-header">
-                    <span id="chatTitle">چت عمومی 🌐</span>
-                </div>
-                <div class="chat-messages" id="messagesList"></div>
-                <div class="chat-input">
-                    <input type="text" id="messageInput" placeholder="پیام خود را بنویسید..." onkeypress="checkEnter(event)">
-                    <button onclick="sendMessage()">ارسال</button>
-                </div>
+    <!-- Ban Modal (For Admin) -->
+    <div class="modal" id="ban-modal">
+        <div class="modal-content">
+            <h3 style="color:#ff4444; margin-bottom:15px;">مدیریت مسدودسازی کاربر</h3>
+            <p id="ban-target-name" style="margin-bottom: 10px;"></p>
+            <label>مدت مسدودسازی:</label>
+            <select id="ban-duration">
+                <option value="5">۵ دقیقه</option>
+                <option value="60">۱ ساعت</option>
+                <option value="1440">۲۴ ساعت</option>
+                <option value="0">تا ابد (دائمی)</option>
+            </select>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="submitBan()" style="flex:1; background:#ff4444; border:none; padding:10px; color:#fff; border-radius:6px; cursor:pointer;">مسدود کردن</button>
+                <button onclick="submitUnban()" style="flex:1; background:#00aa00; border:none; padding:10px; color:#fff; border-radius:6px; cursor:pointer;">رفع مسدودیت</button>
+                <button onclick="closeBanModal()" style="background:#444; border:none; padding:10px; color:#fff; border-radius:6px; cursor:pointer;">بستن</button>
             </div>
-
-            <!-- ستون راست: لیست پی‌وی‌ها و چت عمومی -->
-            <div class="sidebar-right">
-                <div class="sidebar-right-header">گفتگوها و مخاطبین</div>
-                <div class="users-list" id="usersList"></div>
-            </div>
-
         </div>
     </div>
 
     <script>
+        let currentUser = null;
+        let isOwner = false;
         let ws = null;
-        let myPhone = "";
-        let myProfile = { display_name: "", username: "", bio: "" };
-        let currentChat = "public"; 
-        let currentChatName = "چت عمومی 🌐";
+        let currentTargetPhone = 'public'; // 'public' or phone number
+        let usersDataMap = {};
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-
-        async function requestLogin() {
-            const phone = document.getElementById('phoneInput').value.trim();
-            if (!/^09\d{9}$/.test(phone)) { alert('شماره موبایل نامعتبر است!'); return; }
-            myPhone = phone;
-
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone })
-                });
-                const data = await res.json();
-                if (data.error) { alert(data.error); return; }
-
-                const codeBox = document.getElementById('codeBox');
-                if (data.is_new) {
-                    codeBox.innerText = data.code;
-                    codeBox.style.display = 'block';
-                    document.getElementById('codeTitle').innerText = 'کد دائمی شما';
-                    document.getElementById('codeDesc').innerText = 'این کد را یادداشت کنید:';
+        function requestLogin() {
+            const phone = document.getElementById('phone-input').value.trim();
+            if(!phone) return alert('لطفا شماره موبایل را وارد کنید');
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone})
+            })
+            .then(res => res.json())
+            .then(data => {
+                currentUser = phone;
+                document.getElementById('step-phone').style.display = 'none';
+                document.getElementById('step-code').style.display = 'block';
+                if(data.status === 'new') {
+                    document.getElementById('code-msg').innerText = `کد تأیید شما (حساب جدید): ${data.code}`;
                 } else {
-                    codeBox.style.display = 'none';
-                    document.getElementById('codeTitle').innerText = 'ورود به حساب';
-                    document.getElementById('codeDesc').innerText = 'کد ورود خود را وارد کنید:';
+                    document.getElementById('code-msg').innerText = `حساب موجود است. لطفاً کد تأیید خود را وارد کنید (کد در دیتابیس ثبت شده است).`;
                 }
-                openModal('codeModal');
-            } catch (e) { alert('خطا: ' + e.message); }
+            });
         }
 
-        async function submitCode() {
-            const code = document.getElementById('codeInput').value.trim();
-            if (!code) { alert('کد را وارد کنید!'); return; }
-
-            try {
-                const res = await fetch('/api/verify', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: myPhone, code })
-                });
-                const data = await res.json();
-                if (!data.ok) { alert(data.error || 'کد اشتباه است!'); return; }
-
-                closeModal('codeModal');
-                myProfile = data.user || {};
-
-                if (!myProfile.display_name || !myProfile.username) {
-                    document.getElementById('closeProfileBtn').style.display = 'none';
-                    openModal('profileModal');
+        function verifyCode() {
+            const code = document.getElementById('code-input').value.trim();
+            if(!code) return alert('کد را وارد کنید');
+            
+            fetch('/api/verify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone: currentUser, code})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    if(data.is_banned) {
+                        alert('این اکانت فعلاً مسدود است تا: ' + data.banned_until);
+                        return;
+                    }
+                    isOwner = data.is_owner;
+                    document.getElementById('auth-screen').style.display = 'none';
+                    document.getElementById('main-app').style.display = 'flex';
+                    updateMyProfileUI(data.user);
+                    connectWebSocket();
+                    loadUsersList();
+                    setInterval(loadUsersList, 10000);
                 } else {
-                    enterApp();
+                    alert('کد اشتباه است');
                 }
-            } catch (e) { alert('خطا: ' + e.message); }
+            });
         }
 
-        function openEditProfile() {
-            document.getElementById('displayNameInput').value = myProfile.display_name || '';
-            document.getElementById('usernameInput').value = myProfile.username || '';
-            document.getElementById('bioInput').value = myProfile.bio || '';
-            document.getElementById('closeProfileBtn').style.display = 'block';
-            openModal('profileModal');
+        function updateMyProfileUI(user) {
+            document.getElementById('my-display-name').innerText = user.display_name || currentUser;
+            document.getElementById('my-phone-view').innerText = currentUser;
+            if(user.avatar) {
+                document.getElementById('my-avatar').innerHTML = `<img src="${user.avatar}">`;
+            }
         }
 
-        async function saveProfile() {
-            const display_name = document.getElementById('displayNameInput').value.trim();
-            const username = document.getElementById('usernameInput').value.trim();
-            const bio = document.getElementById('bioInput').value.trim();
-
-            if (!display_name || !username) { alert('نام نمایشی و نام کاربری الزامی است!'); return; }
-
-            try {
-                const res = await fetch('/api/profile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: myPhone, display_name, username, bio })
-                });
-                const data = await res.json();
-                if (!data.ok) { alert(data.error || 'خطا در ذخیره پروفایل'); return; }
-
-                myProfile = data.user;
-                closeModal('profileModal');
-                updateProfileUI();
-                enterApp();
-            } catch (e) { alert('خطا: ' + e.message); }
-        }
-
-        function updateProfileUI() {
-            document.getElementById('myDisplayNameDisplay').innerText = myProfile.display_name || 'بدون نام';
-            document.getElementById('myUsernameDisplay').innerText = '@' + (myProfile.username || 'username');
-            document.getElementById('myBioDisplay').innerText = myProfile.bio || 'بیوگرافی ثبت نشده است.';
-            document.getElementById('myAvatarLarge').innerText = myProfile.display_name ? myProfile.display_name[0] : '🐰';
-        }
-
-        function enterApp() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContainer').style.display = 'block';
-            updateProfileUI();
-            loadUsersList();
-            connectWS();
-            loadHistory('public');
-        }
-
-        function connectWS() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${myPhone}`);
-
+        function connectWebSocket() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${proto}//${location.host}/ws/${currentUser}`);
+            
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
-                if (data.chat_id && data.chat_id !== currentChat) return;
-                if (!data.chat_id && currentChat !== 'public') return;
-                addMessage(data);
+                if(data.type === 'banned') {
+                    alert('شما مسدود شده‌اید!');
+                    location.reload();
+                } else if(data.type === 'chat') {
+                    appendMessage(data.message);
+                } else if(data.type === 'edit') {
+                    const el = document.getElementById(`msg-${data.id}`);
+                    if(el) {
+                        el.querySelector('.msg-text').innerText = data.content + ' (ویرایش‌شده)';
+                    }
+                } else if(data.type === 'delete') {
+                    const el = document.getElementById(`msg-${data.id}`);
+                    if(el) {
+                        el.querySelector('.msg-text').innerText = 'این پیام حذف شده است';
+                    }
+                }
             };
         }
 
-        async function loadUsersList() {
-            try {
-                const res = await fetch('/api/users?me=' + myPhone);
-                const data = await res.json();
-                const list = document.getElementById('usersList');
-                list.innerHTML = '';
+        function loadUsersList() {
+            fetch(`/api/users/${currentUser}`)
+            .then(res => res.json())
+            .then(users => {
+                const container = document.getElementById('users-list-container');
+                container.innerHTML = '';
+                usersDataMap = {};
+                
+                users.forEach(u => {
+                    if(u.phone === currentUser) return; // skip self
+                    usersDataMap[u.phone] = u;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'user-item';
+                    div.onclick = () => switchChat(u.phone, u.display_name, u.avatar);
+                    
+                    let avatarHTML = u.display_name ? u.display_name[0] : '👤';
+                    if(u.avatar) avatarHTML = `<img src="${u.avatar}">`;
+                    
+                    let adminBtn = '';
+                    if(isOwner && !u.is_owner) {
+                        adminBtn = `<button onclick="event.stopPropagation(); openBanModal('${u.phone}', '${u.display_name}')" style="background:#ff4444; border:none; color:#fff; padding:3px 8px; border-radius:4px; font-size:10px; margin-right:auto;">مدیریت</button>`;
+                    }
 
-                // گزینه چت عمومی در بالای لیست پی‌وی‌ها
-                const pub = document.createElement('div');
-                pub.className = 'user-row';
-                pub.innerHTML = `<div class="avatar-circle">🌐</div><div class="info"><b>چت عمومی</b><span>ارسال پیام همگانی</span></div>`;
-                pub.onclick = () => switchChat('public', 'چت عمومی 🌐');
-                list.appendChild(pub);
-
-                (data.users || []).forEach(u => {
-                    const row = document.createElement('div');
-                    row.className = 'user-row';
-                    row.innerHTML = `<div class="avatar-circle">${(u.display_name || '?')[0]}</div>
-                                     <div class="info"><b>${u.display_name}</b><span>@${u.username || 'بدون نام'}</span></div>`;
-                    row.onclick = () => switchChat(u.phone, u.display_name);
-                    list.appendChild(row);
+                    div.innerHTML = `
+                        <div class="avatar">${avatarHTML}</div>
+                        <div class="user-info">
+                            <div class="user-name">${u.display_name} ${u.is_owner ? '👑' : ''}</div>
+                            <div class="user-status">${u.last_seen_text}</div>
+                        </div>
+                        ${adminBtn}
+                    `;
+                    container.appendChild(div);
                 });
-            } catch (e) { console.log(e); }
+            });
         }
 
-        function switchChat(chatId, name) {
-            currentChat = chatId;
-            currentChatName = name;
-            document.getElementById('chatTitle').innerText = name;
-            document.getElementById('messagesList').innerHTML = '';
-            loadHistory(chatId);
-        }
-
-        async function loadHistory(chatId) {
-            try {
-                const res = await fetch(`/api/history?chat_id=${chatId}&me=${myPhone}`);
-                const data = await res.json();
-                (data.messages || []).forEach(m => addMessage(m));
-            } catch (e) { console.log(e); }
-        }
-
-        function addMessage(data) {
-            const list = document.getElementById('messagesList');
-            const div = document.createElement('div');
-            if (data.type === 'system') {
-                div.className = 'message system';
-                div.innerText = data.content;
+        function switchChat(target, title, avatar) {
+            currentTargetPhone = target;
+            document.getElementById('current-chat-title').innerText = title;
+            document.getElementById('current-chat-status').innerText = target === 'public' ? 'عمومی' : (usersDataMap[target]?.last_seen_text || '');
+            
+            const avEl = document.getElementById('current-chat-avatar');
+            if(target === 'public') {
+                avEl.innerHTML = '🌐';
+                document.getElementById('admin-actions-box').innerHTML = '';
             } else {
-                const isMine = (data.sender_phone === myPhone);
-                div.className = 'message ' + (isMine ? 'user' : 'other');
-                div.innerHTML = `<span class="sender">${data.user}</span>${data.content} <small style="opacity:.6; font-size:10px;">${data.timestamp || ''}</small>`;
+                avEl.innerHTML = avatar ? `<img src="${avatar}">` : title[0];
+                if(isOwner && !usersDataMap[target]?.is_owner) {
+                    document.getElementById('admin-actions-box').innerHTML = `<button onclick="openBanModal('${target}', '${title}')" style="background:#ff4444; border:none; color:#fff; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:12px;">بن / مسدودیت</button>`;
+                } else {
+                    document.getElementById('admin-actions-box').innerHTML = '';
+                }
             }
-            list.appendChild(div);
-            list.scrollTop = list.scrollHeight;
+
+            // Mobile responsive switch
+            if(window.innerWidth <= 768) {
+                document.getElementById('sidebar-panel').style.display = 'none';
+                document.getElementById('chat-panel').style.display = 'flex';
+            }
+
+            loadHistory(target);
+        }
+
+        function backToSidebar() {
+            document.getElementById('sidebar-panel').style.display = 'flex';
+            document.getElementById('chat-panel').style.display = 'none';
+        }
+
+        function loadHistory(target) {
+            const box = document.getElementById('messages-box');
+            box.innerHTML = '';
+            
+            let url = target === 'public' ? `/api/messages/public/public` : `/api/messages/${currentUser}/${target}`;
+            // Correct public endpoint fetch if needed or handle in backend
+            fetch(`/api/messages/${currentUser}/${target === 'public' ? 'public' : target}`)
+            .then(res => res.json())
+            .then(msgs => {
+                if(Array.isArray(msgs)) {
+                    msgs.forEach(m => appendMessage(m));
+                }
+            });
+        }
+
+        function appendMessage(m) {
+            const box = document.getElementById('messages-box');
+            const div = document.createElement('div');
+            div.className = `message ${m.sender_phone === currentUser ? 'sent' : 'received'}`;
+            div.id = `msg-${m.id}`;
+            
+            const timeStr = new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            let ticks = m.sender_phone === currentUser ? `<span class="msg-ticks">${m.seen ? '✓✓' : '✓'}</span>` : '';
+            
+            let editOpt = '';
+            if(m.sender_phone === currentUser && !m.deleted_for_everyone) {
+                editOpt = ` <span onclick="editMessage(${m.id})" style="font-size:10px; cursor:pointer; color:#aaa;">[ویرایش]</span> <span onclick="deleteMessage(${m.id})" style="font-size:10px; cursor:pointer; color:#ff8888;">[حذف]</span>`;
+            }
+
+            div.innerHTML = `
+                <div class="msg-text">${m.content} ${m.is_edited ? '<small>(ویرایش‌شده)</small>' : ''}</div>
+                <div>${editOpt}</div>
+                <div class="msg-time">${timeStr} ${ticks}</div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
         }
 
         function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text) return;
-            if (!ws || ws.readyState !== WebSocket.OPEN) { alert('ارتباط قطع است!'); return; }
-            ws.send(JSON.stringify({ content: text, chat_id: currentChat }));
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+            if(!content) return;
+            
+            ws.send(JSON.stringify({
+                type: 'chat',
+                content: content,
+                receiver_phone: currentTargetPhone === 'public' ? null : currentTargetPhone,
+                sender_name: document.getElementById('my-display-name').innerText
+            }));
             input.value = '';
         }
 
-        function checkEnter(e) { if (e.key === 'Enter') sendMessage(); }
+        function editMessage(id) {
+            const newText = prompt('متن جدید پیام را وارد کنید:');
+            if(newText) {
+                ws.send(JSON.stringify({type: 'edit', id: id, content: newText}));
+            }
+        }
+
+        function deleteMessage(id) {
+            if(confirm('آیا پیام برای همه حذف شود؟')) {
+                ws.send(JSON.stringify({type: 'delete', id: id, mode: 'everyone'}));
+            }
+        }
+
+        // Profile Modal handlers
+        function openProfileModal() {
+            document.getElementById('profile-modal').style.display = 'flex';
+            document.getElementById('edit-display-name').value = document.getElementById('my-display-name').innerText;
+            document.getElementById('edit-bio').value = '';
+        }
+        function closeProfileModal() {
+            document.getElementById('profile-modal').style.display = 'none';
+        }
+        function saveProfile() {
+            const display_name = document.getElementById('edit-display-name').value;
+            const username = document.getElementById('edit-username').value;
+            const bio = document.getElementById('edit-bio').value;
+            const avatar = document.getElementById('edit-avatar').value;
+            const privacy = document.getElementById('edit-privacy').value;
+            
+            fetch('/api/profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({phone: currentUser, display_name, username, bio, avatar, privacy})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert('پروفایل به‌روز شد');
+                    closeProfileModal();
+                    if(display_name) document.getElementById('my-display-name').innerText = display_name;
+                    if(avatar) document.getElementById('my-avatar').innerHTML = `<img src="${avatar}">`;
+                }
+            });
+        }
+
+        // Ban Modal handlers
+        let activeBanPhone = null;
+        function openBanModal(phone, name) {
+            activeBanPhone = phone;
+            document.getElementById('ban-target-name').innerText = `کاربر: ${name} (${phone})`;
+            document.getElementById('ban-modal').style.display = 'flex';
+        }
+        function closeBanModal() {
+            document.getElementById('ban-modal').style.display = 'none';
+        }
+        function submitBan() {
+            const minutes = parseInt(document.getElementById('ban-duration').value);
+            fetch('/api/admin/ban', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_phone: currentUser, target_phone: activeBanPhone, minutes})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert('کاربر با موفقیت مسدود شد.');
+                    closeBanModal();
+                    loadUsersList();
+                }
+            });
+        }
+        function submitUnban() {
+            fetch('/api/admin/unban', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({admin_phone: currentUser, target_phone: activeBanPhone, minutes: 0})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alert('رفع مسدودیت انجام شد.');
+                    closeBanModal();
+                    loadUsersList();
+                }
+            });
+        }
     </script>
 </body>
 </html>
